@@ -20,3 +20,19 @@ function(CCDGPU_download_project name)
 endfunction()
 
 ################################################################################
+
+## broadphase
+function(ccdgpu_download_broadphase)
+    ccdgpu_download_project(broadphase
+      GIT_REPOSITORY git@github.com:dbelgrod/bruteforce-gpu.git ##https://github.com/dbelgrod/bruteforce-gpu.git
+      GIT_TAG main
+    )
+endfunction()
+
+## narrowphase
+function(ccdgpu_download_narrowphase)
+    ccdgpu_download_project(narrowphase
+      GIT_REPOSITORY git@github.com:wangbolun300/GPUTI.git ##https://github.com/wangbolun300/GPUTI.git
+      GIT_TAG master
+    )
+endfunction()

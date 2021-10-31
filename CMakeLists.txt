@@ -88,6 +88,11 @@ endif()
 
 ###############################################################################
 
+target_link_libraries(${PROJECT_NAME} PUBLIC broadphase)
+
+target_link_libraries(${PROJECT_NAME} PUBLIC narrowphase)
+
+
 # target_compile_options(CCDGPU_bin PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:
 #                        --generate-line-info
 #                        --use_fast_math

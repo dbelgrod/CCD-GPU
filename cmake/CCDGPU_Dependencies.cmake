@@ -10,3 +10,14 @@ list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR})
 list(REMOVE_DUPLICATES CMAKE_MODULE_PATH)
 include(CCDGPU_DownloadExternal)
 
+# broadphase
+if(NOT TARGET broadphase)
+    ccdgpu_download_broadphase()
+    add_subdirectory(${CCDGPU_EXTERNAL}/broadphase EXCLUDE_FROM_ALL)
+endif()
+
+# narrowphase
+if(NOT TARGET narrowphase)
+    ccdgpu_download_narrowphase()
+    add_subdirectory(${CCDGPU_EXTERNAL}/narrowphase EXCLUDE_FROM_ALL)
+endif()
