@@ -68,20 +68,6 @@ set_target_properties( ${PROJECT_NAME}
 # Nvidia 3080Ti -> compute_86               
 set_property(TARGET ${PROJECT_NAME} PROPERTY CUDA_ARCHITECTURES 61 70 75 86)
 
-# # executable
-# add_executable(CCDGPU_bin app/main.cu)
-# set_target_properties(CCDGPU_bin PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
-# set_property(TARGET CCDGPU_bin PROPERTY CUDA_ARCHITECTURES 61 70 75 86)
-# target_link_libraries(CCDGPU_bin PRIVATE ${PROJECT_NAME})
-                  
-                  
-if(APPLE)
-# We need to add the default path to the driver (libcuda.dylib) as an rpath,
-# so that the static cuda runtime can find it at runtime.
-# set_property(TARGET CCDGPU_bin PROPERTY BUILD_RPATH ${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES})
-endif()
-
-
 ################################################################################
 # Required Libraries
 ################################################################################
@@ -90,13 +76,37 @@ endif()
 
 target_link_libraries(${PROJECT_NAME} PUBLIC broadphase)
 
-target_link_libraries(${PROJECT_NAME} PUBLIC narrowphase)
+# target_link_libraries(${PROJECT_NAME} PUBLIC gputi)
+
+# libigl
+target_link_libraries(${PROJECT_NAME} PUBLIC igl::core)
+
+# JSON
+target_link_libraries(${PROJECT_NAME} PUBLIC nlohmann_json::nlohmann_json)
+
+################################################################################
+# Binary
+################################################################################
 
 
-# target_compile_options(CCDGPU_bin PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:
-#                        --generate-line-info
-#                        --use_fast_math
-#                        --relocatable-device-code=true
-#                        --ptxas-options=-v
-#                       # --maxrregcount=7
-#                        >)  
+# # executable
+add_executable(ccdgpu_bin app/main.cu)
+set_target_properties(ccdgpu_bin PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
+set_property(TARGET ccdgpu_bin PROPERTY CUDA_ARCHITECTURES 61 70 75 86)
+target_link_libraries(ccdgpu_bin PRIVATE ${PROJECT_NAME})
+                  
+                  
+if(APPLE)
+# We need to add the default path to the driver (libcuda.dylib) as an rpath,
+# so that the static cuda runtime can find it at runtime.
+set_property(TARGET ccdgpu_bin PROPERTY BUILD_RPATH ${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES})
+endif()
+
+
+target_compile_options(ccdgpu_bin PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:
+                       --generate-line-info
+                       --use_fast_math
+                       --relocatable-device-code=true
+                       --ptxas-options=-v
+                      # --maxrregcount=7
+                       >)  

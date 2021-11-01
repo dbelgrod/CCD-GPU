@@ -13,11 +13,11 @@ include(CCDGPU_DownloadExternal)
 # broadphase
 if(NOT TARGET broadphase)
     ccdgpu_download_broadphase()
-    add_subdirectory(${CCDGPU_EXTERNAL}/broadphase EXCLUDE_FROM_ALL)
+    add_subdirectory(${CCDGPU_EXTERNAL}/broadphase)
 endif()
 
 # narrowphase
-if(NOT TARGET narrowphase)
+if(NOT TARGET gputi)
     ccdgpu_download_narrowphase()
-    add_subdirectory(${CCDGPU_EXTERNAL}/narrowphase EXCLUDE_FROM_ALL)
+    add_subdirectory(${CCDGPU_EXTERNAL}/narrowphase)
 endif()
