@@ -13,7 +13,7 @@
 #include <igl/readPLY.h>
 #include <igl/edges.h>
 
-#include <gpubf/simulation.h>
+#include <gpubf/simulation.cuh>
 #include <gpubf/groundtruth.h>
 #include <gpubf/util.cuh>
 #include <gpubf/io.cuh>
@@ -46,7 +46,7 @@ void addData(
         auto face_vertex1_start = V0.cast<float>().row(bvids.y);
         auto face_vertex2_start = V0.cast<float>().row(bvids.z);
         // // Point at t=1
-        auto vertex_end = V1.row(avids.x);
+        auto vertex_end = V1.cast<float>().row(avids.x);
         // // Triangle at t = 1
         auto face_vertex0_end = V1.cast<float>().row(bvids.x);
         auto face_vertex1_end = V1.cast<float>().row(bvids.y);
@@ -54,7 +54,14 @@ void addData(
 
         std::array<std::array<float, 3>, 8> tmp;
         tmp[0] = Vec3Conv(vertex_start);
-
+        tmp[1] = Vec3Conv(face_vertex0_start);
+        tmp[2] = Vec3Conv(face_vertex1_start);
+        tmp[3] = Vec3Conv(face_vertex2_start);
+        tmp[4] = Vec3Conv(vertex_end);
+        tmp[5] = Vec3Conv(face_vertex0_end);
+        tmp[6] = Vec3Conv(face_vertex1_end);
+        tmp[7] = Vec3Conv(face_vertex2_end);
+        queries.emplace_back(tmp);
     }
     else if (is_face(a) && is_vertex(b))
         return addData(b, a, V0, V1, queries);
@@ -76,16 +83,38 @@ void addData(
         auto edge1_vertex1_end = V1.cast<float>().row(bvids.y);
         
         // queries.emplace_back(Vec3Conv(edge0_vertex0_start));
+        std::array<std::array<float, 3>, 8> tmp;
+        tmp[0] = Vec3Conv(edge0_vertex0_start);
+        tmp[1] = Vec3Conv(edge0_vertex1_start);
+        tmp[2] = Vec3Conv(edge1_vertex0_start);
+        tmp[3] = Vec3Conv(edge1_vertex1_start);
+        tmp[4] = Vec3Conv(edge0_vertex0_end);
+        tmp[5] = Vec3Conv(edge0_vertex1_end);
+        tmp[6] = Vec3Conv(edge1_vertex0_end);
+        tmp[7] = Vec3Conv(edge1_vertex1_end);
+        queries.emplace_back(tmp);
     }
+    else abort();
 }
 
+bool is_file_exist(const char *fileName)
+{
+    ifstream infile(fileName);
+    return infile.good();
+}
 
 int main( int argc, char **argv )
 {
     vector<char*> compare;
 
-    const char* filet0 = argv[1];
-    const char* filet1 = argv[2];
+    char* filet0;
+    char* filet1;
+
+    filet0 = argv[1];
+    if (is_file_exist(argv[2])) //CCD
+        filet1 = argv[2];
+    else //static CD
+        filet1 = argv[1];
     
     vector<Aabb> boxes;
     Eigen::MatrixXd vertices_t0;
@@ -97,6 +126,10 @@ int main( int argc, char **argv )
     constructBoxes(vertices_t0, vertices_t1, faces, edges, boxes);
     int N = boxes.size();
     int nbox = 0;
+    int parallel = 0;
+    int devcount = 1;
+
+    // std::copy(from_vector.begin(), from_vector.end(), to_vector.begin());
     
     int o;
     while ((o = getopt (argc, argv, "c:n:b:")) != -1)
@@ -120,21 +153,21 @@ int main( int argc, char **argv )
         }
     }
 
-    vector<unsigned long> overlaps;
-    run_sweep(boxes.data(), N, nbox, overlaps);
+    vector<pair<int,int>> overlaps;
+    run_sweep_pieces(boxes.data(), N, nbox, overlaps, parallel, devcount);
 
     std::vector<std::array<std::array<float, 3>, 8>> queries;
-    for (int i=0; i < overlaps.size() / 2; i++)
+    for (int i=0; i < overlaps.size(); i++)
     {
-        int aid = overlaps[2*i];
-        int bid = overlaps[2*i+1];
+        int aid = overlaps[i].first;
+        int bid = overlaps[i].second;
 
         Aabb a = boxes[aid];
         Aabb b = boxes[bid];  
 
         addData(a, b, vertices_t0, vertices_t1, queries);
-    
     }
+    printf("size: %i\n", queries.size());
 
     
     // for (auto i : compare)

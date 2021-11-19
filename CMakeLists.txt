@@ -66,7 +66,7 @@ set_target_properties( ${PROJECT_NAME}
 # Nvidia V100 -> compute_70
 # Nvidia 1080/1080Ti -> compute_61       
 # Nvidia 3080Ti -> compute_86               
-set_property(TARGET ${PROJECT_NAME} PROPERTY CUDA_ARCHITECTURES 61 70 75 86)
+set_property(TARGET ${PROJECT_NAME} PROPERTY CUDA_ARCHITECTURES 70 75 86)
 
 ################################################################################
 # Required Libraries
@@ -92,7 +92,7 @@ target_link_libraries(${PROJECT_NAME} PUBLIC nlohmann_json::nlohmann_json)
 # # executable
 add_executable(ccdgpu_bin app/main.cu)
 set_target_properties(ccdgpu_bin PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
-set_property(TARGET ccdgpu_bin PROPERTY CUDA_ARCHITECTURES 61 70 75 86)
+set_property(TARGET ccdgpu_bin PROPERTY CUDA_ARCHITECTURES 70 75 86)
 target_link_libraries(ccdgpu_bin PRIVATE ${PROJECT_NAME})
                   
                   
