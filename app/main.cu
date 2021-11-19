@@ -31,15 +31,19 @@ void addData(
     const Eigen::MatrixXd& V1,
     std::vector<std::array<std::array<float, 3>, 8>>& queries)
 {
-    auto is_vertex = [&](Aabb x){return x.vertexIds.y < 0 ;};
-    auto is_edge = [&](Aabb x){return !is_vertex(x) && x.vertexIds.z < 0 ;};
-    auto is_face = [&](Aabb x){return !is_vertex(x) && !is_edge(x);};
+    // auto is_vertex = [&](Aabb x){return x.vertexIds.y < 0 ;};
+    // auto is_edge = [&](Aabb x){return !is_vertex(x) && x.vertexIds.z < 0 ;};
+    // auto is_face = [&](Aabb x){return !is_vertex(x) && !is_edge(x);};
+
+    auto is_face = [&](Aabb x){return x.vertexIds.z >= 0;};
+    auto is_edge = [&](Aabb x){return x.vertexIds.z < 0 && x.vertexIds.y >= 0 ;};
+    auto is_vertex = [&](Aabb x){return x.vertexIds.z < 0  && x.vertexIds.y < 0;};
 
     if (is_vertex(a) && is_face(b))
     {
         auto avids = a.vertexIds;
         auto bvids = b.vertexIds;
-            // Point at t=0
+            // Point at t=0s
         auto vertex_start = V0.cast<float>().row(avids.x);
         // // Triangle at t = 0
         auto face_vertex0_start = V0.cast<float>().row(bvids.x);
