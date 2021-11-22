@@ -76,7 +76,7 @@ set_property(TARGET ${PROJECT_NAME} PROPERTY CUDA_ARCHITECTURES 70 75 86)
 
 target_link_libraries(${PROJECT_NAME} PUBLIC broadphase)
 
-# target_link_libraries(${PROJECT_NAME} PUBLIC gputi)
+target_link_libraries(${PROJECT_NAME} PUBLIC gputi)
 
 # libigl
 target_link_libraries(${PROJECT_NAME} PUBLIC igl::core)
