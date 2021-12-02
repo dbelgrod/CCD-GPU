@@ -33,6 +33,6 @@ endfunction()
 function(ccdgpu_download_narrowphase)
     ccdgpu_download_project(narrowphase
       GIT_REPOSITORY https://github.com/wangbolun300/GPUTI.git ##https://github.com/wangbolun300/GPUTI.git
-      GIT_TAG master
+      GIT_TAG 5744d1dd2a3d5e07ad97d30a3534c098bf8c987a
     )
 endfunction()

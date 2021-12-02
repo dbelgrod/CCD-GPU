@@ -29,11 +29,24 @@ using namespace ccd;
 
 #define Vec3Conv(v) {v[0], v[1], v[2]}
 
+#define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
+inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=true)
+{
+    if (code != cudaSuccess) 
+    {
+        fprintf(stderr,"GPUassert: %s %s %d\n", cudaGetErrorString(code), file, line);
+        if (abort) exit(code);
+    }
+}
+
 // #include <gpubf/klee.cuh>
 
 typedef float Scalar;
 
 using namespace std;
+
+
+
 
 __global__ void addData
 (
@@ -42,7 +55,7 @@ __global__ void addData
     const double* V0,
     const double* V1, 
     int N, 
-    float3** queries
+    float3* queries
 )
 {
     int tid = threadIdx.x + blockIdx.x * blockDim.x;
@@ -74,16 +87,16 @@ __global__ void addData
         auto face_vertex2_end = make_float3(V1[3*bvids.z], V1[3*bvids.z + 1], V1[3*bvids.z + 2]) ;
 
         // array<array<float, 3>, 8> tmp;
-        float3 tmp[8];
-        tmp[0] = vertex_start;
-        tmp[1] = face_vertex0_start;
-        tmp[2] = face_vertex1_start;
-        tmp[3] = face_vertex2_start;
-        tmp[4] = vertex_end;
-        tmp[5] = face_vertex0_end;
-        tmp[6] = face_vertex1_end;
-        tmp[7] = face_vertex2_end;
-        queries[tid] = tmp;
+        // float3 tmp[8];
+        queries[8*tid + 0] = vertex_start;
+        queries[8*tid + 1] = face_vertex0_start;
+        queries[8*tid + 2] = face_vertex1_start;
+        queries[8*tid + 3] = face_vertex2_start;
+        queries[8*tid + 4] = vertex_end;
+        queries[8*tid + 5] = face_vertex0_end;
+        queries[8*tid + 6] = face_vertex1_end;
+        queries[8*tid + 7] = face_vertex2_end;
+        
     }
     else if (is_edge(avids) && is_edge(bvids))
     {
@@ -101,18 +114,21 @@ __global__ void addData
         auto edge1_vertex1_end = make_float3(V1[3*bvids.y], V1[3*bvids.y + 1], V1[3*bvids.y + 2]) ;
         
         // queries.emplace_back(Vec3Conv(edge0_vertex0_start));
-        float3 tmp[8];
-        tmp[0] = edge0_vertex0_start;
-        tmp[1] = edge0_vertex1_start;
-        tmp[2] = edge1_vertex0_start;
-        tmp[3] = edge1_vertex1_start;
-        tmp[4] = edge0_vertex0_end;
-        tmp[5] = edge0_vertex1_end;
-        tmp[6] = edge1_vertex0_end;
-        tmp[7] = edge1_vertex1_end;
-        queries[tid] = tmp;
+        // float3 tmp[8];
+        queries[8*tid + 0] = edge0_vertex0_start;
+        queries[8*tid + 1] = edge0_vertex1_start;
+        queries[8*tid + 2] = edge1_vertex0_start;
+        queries[8*tid + 3] = edge1_vertex1_start;
+        queries[8*tid + 4] = edge0_vertex0_end;
+        queries[8*tid + 5] = edge0_vertex1_end;
+        queries[8*tid + 6] = edge1_vertex0_end;
+        queries[8*tid + 7] = edge1_vertex1_end;
+        // queries[tid] = tmp;
+        
     }
     else assert(0);
+
+    if (tid == 0) printf("queries[tid].x: %.3f\n", queries[0].x);
 }
 
 void addData(
@@ -336,60 +352,157 @@ __global__ void run_parallel_ms_ee_ccd_all(CCDdata *data,CCDConfig *config_in, b
     tois[tx] = 0;
 }
 
-// __global__ void array_to_ccd(float3 ** a, int tmp_nbr, CCDdata * data )
-// {
-//     int tid = threadIdx.x + blockIdx.x * blockDim.x;
-//     if (tid >= tmp_nbr) return;
+__global__ void array_to_ccd(float3 * a, int tmp_nbr, CCDdata * data )
+{
+    int tid = threadIdx.x + blockIdx.x * blockDim.x;
+    if (tid >= tmp_nbr) return;
 
-//     #ifndef NO_CHECK_MS
-//     data[tid].ms=MINIMUM_SEPARATION_BENCHMARK;
-//     #endif
+    #ifndef NO_CHECK_MS
+    data[tid].ms=MINIMUM_SEPARATION_BENCHMARK;
+    #endif
+    
+    if (tid == 0)
+        printf("for tid[0] %.3f\n", a[0].x );
     
   
-//     data[tid].v0s[0] = a[tid][0].x;
-//     data[tid].v1s[0] = a[tid][1].x;
-//     data[tid].v2s[0] = a[tid][2].x;
-//     data[tid].v3s[0] = a[tid][3].x;
-//     data[tid].v0e[0] = a[tid][4].x;
-//     data[tid].v1e[0] = a[tid][5].x;
-//     data[tid].v2e[0] = a[tid][6].x;
-//     data[tid].v3e[0] = a[tid][7].x;
+    data[tid].v0s[0] = a[8*tid + 0].x;
+    data[tid].v1s[0] = a[8*tid + 1].x;
+    data[tid].v2s[0] = a[8*tid + 2].x;
+    data[tid].v3s[0] = a[8*tid + 3].x;
+    data[tid].v0e[0] = a[8*tid + 4].x;
+    data[tid].v1e[0] = a[8*tid + 5].x;
+    data[tid].v2e[0] = a[8*tid + 6].x;
+    data[tid].v3e[0] = a[8*tid + 7].x;
 
-//     data[tid].v0s[1] = a[tid][0].y;
-//     data[tid].v1s[1] = a[tid][1].y;
-//     data[tid].v2s[1] = a[tid][2].y;
-//     data[tid].v3s[1] = a[tid][3].y;
-//     data[tid].v0e[1] = a[tid][4].y;
-//     data[tid].v1e[1] = a[tid][5].y;
-//     data[tid].v2e[1] = a[tid][6].y;
-//     data[tid].v3e[1] = a[tid][7].y;
+    data[tid].v0s[1] = a[8*tid + 0].y;
+    data[tid].v1s[1] = a[8*tid + 1].y;
+    data[tid].v2s[1] = a[8*tid + 2].y;
+    data[tid].v3s[1] = a[8*tid + 3].y;
+    data[tid].v0e[1] = a[8*tid + 4].y;
+    data[tid].v1e[1] = a[8*tid + 5].y;
+    data[tid].v2e[1] = a[8*tid + 6].y;
+    data[tid].v3e[1] = a[8*tid + 7].y;
 
-//     data[tid].v0s[2] = a[tid][0].z;
-//     data[tid].v1s[2] = a[tid][1].z;
-//     data[tid].v2s[2] = a[tid][2].z;
-//     data[tid].v3s[2] = a[tid][3].z;
-//     data[tid].v0e[2] = a[tid][4].z;
-//     data[tid].v1e[2] = a[tid][5].z;
-//     data[tid].v2e[2] = a[tid][6].z;
-//     data[tid].v3e[2] = a[tid][7].z;
-// }
+    data[tid].v0s[2] = a[8*tid + 0].z;
+    data[tid].v1s[2] = a[8*tid + 1].z;
+    data[tid].v2s[2] = a[8*tid + 2].z;
+    data[tid].v3s[2] = a[8*tid + 3].z;
+    data[tid].v0e[2] = a[8*tid + 4].z;
+    data[tid].v1e[2] = a[8*tid + 5].z;
+    data[tid].v2e[2] = a[8*tid + 6].z;
+    data[tid].v3e[2] = a[8*tid + 7].z;
+}
 
-// void all_ccd_run(float3 ** V, int tmp_nbr, bool is_edge,
-//     std::vector<bool> &result_list, double &run_time, std::vector<Scalar> &time_impact, int parallel_nbr)
-// {
-//     int nbr = tmp_nbr;
-//     result_list.resize(nbr);
-//     // host
-//     // CCDdata *data_list = new CCDdata[nbr];
-//     CCDdata *data_list;
-//     cudaMalloc((void**)data_list, sizeof(CCDdata)*nbr);
-//     array_to_ccd<<<nbr / parallel_nbr + 1, parallel_nbr>>>( V, nbr, data_list);
-//     cudaDeviceSynchronize();
-// }
+void all_ccd_run(float3 * V, int tmp_nbr, bool is_edge,
+    std::vector<bool> &result_list, double &run_time, std::vector<Scalar> &time_impact, int parallel_nbr)
+{
+    int nbr = tmp_nbr;
+    result_list.resize(nbr);
+    // host
+    // CCDdata *data_list = new CCDdata[nbr];
+    CCDdata *data_list;
+    cudaMalloc((void**)&data_list, sizeof(CCDdata)*nbr);
+    array_to_ccd<<<nbr / parallel_nbr + 1, parallel_nbr>>>( V, nbr, data_list);
+    cudaDeviceSynchronize();
+    gpuErrchk( cudaGetLastError() ); 
+    printf("Finished array_to_ccd\n");
+
+    bool *res = new bool[nbr];
+    Scalar *tois = new Scalar[nbr];
+    CCDConfig *config=new CCDConfig[1];
+    config[0].err_in[0]=-1;// the input error bound calculate from the AABB of the whole mesh
+    config[0].co_domain_tolerance=1e-6; // tolerance of the co-domain
+    config[0].max_t=1; // the upper bound of the time interval
+    config[0].max_itr=1e6;// the maximal nbr of iterations
+
+    // device
+    CCDdata *d_data_list;
+    bool *d_res;
+    Scalar *d_tois;
+    CCDConfig *d_config;
+
+    int data_size = sizeof(CCDdata) * nbr;
+    int result_size = sizeof(bool) * nbr;
+    int time_size = sizeof(Scalar) * nbr;
+    // int dbg_size=sizeof(Scalar)*8;
+
+    cudaMalloc(&d_data_list, data_size);
+    cudaMalloc(&d_res, result_size);
+    cudaMalloc(&d_tois, time_size);
+    cudaMalloc(&d_config, sizeof(CCDConfig));
+
+    cudaMemcpy(d_data_list, data_list, data_size, cudaMemcpyDeviceToDevice);
+    cudaMemcpy(d_config, config, sizeof(CCDConfig), cudaMemcpyHostToDevice);
+    gpuErrchk( cudaGetLastError() ); 
+
+    ccd::Timer timer;
+    cudaProfilerStart();
+    timer.start();
+    #ifdef NO_CHECK_MS
+    if(is_edge){
+    run_parallel_ee_ccd_all<<<nbr / parallel_nbr + 1, parallel_nbr>>>( 
+    d_data_list,d_config, d_res, nbr, d_tois);
+    }
+    else{
+    run_parallel_vf_ccd_all<<<nbr / parallel_nbr + 1, parallel_nbr>>>( 
+    d_data_list,d_config, d_res, nbr, d_tois);
+    }
+    #else
+    if(is_edge){
+    run_parallel_ms_ee_ccd_all<<<nbr / parallel_nbr + 1, parallel_nbr>>>( 
+    d_data_list,d_config, d_res, nbr, d_tois);
+    }
+    else{
+    run_parallel_ms_vf_ccd_all<<<nbr / parallel_nbr + 1, parallel_nbr>>>( 
+    d_data_list,d_config, d_res, nbr, d_tois);
+    }
+    #endif
+
+    cudaDeviceSynchronize();
+    double tt = timer.getElapsedTimeInMicroSec();
+    run_time = tt;
+    cudaProfilerStop();
+
+    cudaMemcpy(res, d_res, result_size, cudaMemcpyDeviceToHost);
+    cudaMemcpy(tois, d_tois, time_size, cudaMemcpyDeviceToHost);
+    //cudaMemcpy(dbg, d_dbg, dbg_size, cudaMemcpyDeviceToHost);
+
+    cudaFree(data_list);
+    cudaFree(d_data_list);
+    cudaFree(d_res);
+    cudaFree(d_tois);
+    cudaFree(d_config);
+    //cudaFree(d_dbg);
+
+    for (int i = 0; i < nbr; i++)
+    {
+    result_list[i] = res[i];
+    }
+
+    time_impact.resize(nbr);
+
+    for (int i = 0; i < nbr; i++)
+    {
+    time_impact[i] = tois[i];
+    }
+    // std::cout << "dbg info\n"
+    //           << dbg[0] << "," << dbg[1] << "," << dbg[2] << "," << dbg[3] << "," << dbg[4] << "," << dbg[5] << "," << dbg[6] << "," << dbg[7] << std::endl;
+    delete[] res;
+    // delete[] data_list;
+    delete[] tois;
+    delete[] config;
+    //delete[] dbg;
+    cudaError_t ct = cudaGetLastError();
+    printf("******************\n%s\n************\n", cudaGetErrorString(ct));
+
+    return;
+}
 
 void all_ccd_run(const std::vector<std::array<std::array<Scalar, 3>, 8>> &V, bool is_edge,
     std::vector<bool> &result_list, double &run_time, std::vector<Scalar> &time_impact, int parallel_nbr)
 {
+gpuErrchk( cudaGetLastError() ); 
+
 int nbr = V.size();
 result_list.resize(nbr);
 // host
@@ -428,6 +541,7 @@ cudaMalloc(&d_config, sizeof(CCDConfig));
 
 cudaMemcpy(d_data_list, data_list, data_size, cudaMemcpyHostToDevice);
 cudaMemcpy(d_config, config, sizeof(CCDConfig), cudaMemcpyHostToDevice);
+gpuErrchk( cudaGetLastError() ); 
 
 ccd::Timer timer;
 cudaProfilerStart();
@@ -541,24 +655,29 @@ int main( int argc, char **argv )
                 break;
         }
     }
-
     vector<pair<int,int>> overlaps;
     int2 * d_overlaps;
     int * d_count;
     run_sweep_pieces(boxes.data(), N, nbox, overlaps, d_overlaps, d_count, parallel, devcount);
-
+    gpuErrchk(cudaDeviceSynchronize());
+    gpuErrchk( cudaGetLastError() ); 
+    
     // copy overlap count
-    int Noverlaps;
-    cudaMemcpy(&Noverlaps, d_count, sizeof(int), cudaMemcpyDeviceToHost);
+    int count;
+    gpuErrchk(cudaMemcpy(&count, d_count, sizeof(int), cudaMemcpyDeviceToHost));
+    printf("Count %i\n", count);
+    gpuErrchk( cudaGetLastError() ); 
 
     // Allocate boxes to GPU 
     Aabb * d_boxes;
     cudaMalloc((void**)&d_boxes, sizeof(Aabb)*N);
     cudaMemcpy(d_boxes, boxes.data(), sizeof(Aabb)*N, cudaMemcpyHostToDevice);
+    gpuErrchk( cudaGetLastError() ); 
 
     
-    float3 ** d_queries;
-    cudaMalloc((void**)&d_queries, sizeof(float3)*8*Noverlaps);
+    float3 * d_queries;
+    cudaMalloc((void**)&d_queries, sizeof(float3)*8*count);
+    gpuErrchk( cudaGetLastError() ); 
 
     double * d_vertices_t0;
     double * d_vertices_t1;
@@ -567,16 +686,17 @@ int main( int argc, char **argv )
     cudaMemcpy(d_vertices_t0, vertices_t0.data(), sizeof(double)*3*vertices_t0.rows(), cudaMemcpyHostToDevice);
     cudaMemcpy(d_vertices_t1, vertices_t1.data(), sizeof(double)*3*vertices_t1.rows(), cudaMemcpyHostToDevice);
     
-    
-    addData<<<Noverlaps / parallel + 1, parallel>>>(d_overlaps, d_boxes, d_vertices_t0, d_vertices_t1, Noverlaps, d_queries );
+    gpuErrchk( cudaGetLastError() ); 
+    addData<<<count / parallel + 1, parallel>>>(d_overlaps, d_boxes, d_vertices_t0, d_vertices_t1, count, d_queries );
+    cudaDeviceSynchronize();
+    gpuErrchk( cudaGetLastError() ); 
 
     cudaFree(d_overlaps);
     cudaFree(d_boxes);
     cudaFree(d_vertices_t0);
     cudaFree(d_vertices_t1);
 
-    cudaGetLastError();
-
+    cudaDeviceSynchronize();
     
     vector<array<array<float, 3>, 8>> queries;
     for (int i=0; i < overlaps.size(); i++)
@@ -601,7 +721,7 @@ int main( int argc, char **argv )
     result_list.resize(size);
     tois.resize(size);
 
-    // float3 ** d_tmp_queries;
+    float3 * d_tmp_queries;
     while (1)
     {
         vector<bool> tmp_results;
@@ -619,14 +739,16 @@ int main( int argc, char **argv )
         tmp_queries.resize(tmp_nbr);
         tmp_tois.resize(tmp_nbr);
 
-        // cudaMalloc((void**)&d_tmp_queries, sizeof(float3)*8*tmp_nbr);
-        // cudaMemcpy(d_tmp_queries, d_queries + start_id, sizeof(float3)*8*tmp_nbr, cudaMemcpyDeviceToDevice);
+        cudaMalloc((void**)&d_tmp_queries, sizeof(float3)*8*tmp_nbr);
+        cudaMemcpy(d_tmp_queries, d_queries + start_id, sizeof(float3)*8*tmp_nbr, cudaMemcpyDeviceToDevice);
         for (int i = 0; i < tmp_nbr; i++)
         {
             tmp_queries[i] = queries[start_id + i];
         }
         bool is_edge_edge = true;
         all_ccd_run(tmp_queries, is_edge_edge, tmp_results, tmp_tall, tmp_tois, parallel);
+        
+        // all_ccd_run(d_tmp_queries, tmp_nbr, is_edge_edge, tmp_results, tmp_tall, tmp_tois, parallel);
 
         tavg += tmp_tall;
         for (int i = 0; i < tmp_nbr; i++)
