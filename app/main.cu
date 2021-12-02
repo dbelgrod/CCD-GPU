@@ -336,6 +336,57 @@ __global__ void run_parallel_ms_ee_ccd_all(CCDdata *data,CCDConfig *config_in, b
     tois[tx] = 0;
 }
 
+// __global__ void array_to_ccd(float3 ** a, int tmp_nbr, CCDdata * data )
+// {
+//     int tid = threadIdx.x + blockIdx.x * blockDim.x;
+//     if (tid >= tmp_nbr) return;
+
+//     #ifndef NO_CHECK_MS
+//     data[tid].ms=MINIMUM_SEPARATION_BENCHMARK;
+//     #endif
+    
+  
+//     data[tid].v0s[0] = a[tid][0].x;
+//     data[tid].v1s[0] = a[tid][1].x;
+//     data[tid].v2s[0] = a[tid][2].x;
+//     data[tid].v3s[0] = a[tid][3].x;
+//     data[tid].v0e[0] = a[tid][4].x;
+//     data[tid].v1e[0] = a[tid][5].x;
+//     data[tid].v2e[0] = a[tid][6].x;
+//     data[tid].v3e[0] = a[tid][7].x;
+
+//     data[tid].v0s[1] = a[tid][0].y;
+//     data[tid].v1s[1] = a[tid][1].y;
+//     data[tid].v2s[1] = a[tid][2].y;
+//     data[tid].v3s[1] = a[tid][3].y;
+//     data[tid].v0e[1] = a[tid][4].y;
+//     data[tid].v1e[1] = a[tid][5].y;
+//     data[tid].v2e[1] = a[tid][6].y;
+//     data[tid].v3e[1] = a[tid][7].y;
+
+//     data[tid].v0s[2] = a[tid][0].z;
+//     data[tid].v1s[2] = a[tid][1].z;
+//     data[tid].v2s[2] = a[tid][2].z;
+//     data[tid].v3s[2] = a[tid][3].z;
+//     data[tid].v0e[2] = a[tid][4].z;
+//     data[tid].v1e[2] = a[tid][5].z;
+//     data[tid].v2e[2] = a[tid][6].z;
+//     data[tid].v3e[2] = a[tid][7].z;
+// }
+
+// void all_ccd_run(float3 ** V, int tmp_nbr, bool is_edge,
+//     std::vector<bool> &result_list, double &run_time, std::vector<Scalar> &time_impact, int parallel_nbr)
+// {
+//     int nbr = tmp_nbr;
+//     result_list.resize(nbr);
+//     // host
+//     // CCDdata *data_list = new CCDdata[nbr];
+//     CCDdata *data_list;
+//     cudaMalloc((void**)data_list, sizeof(CCDdata)*nbr);
+//     array_to_ccd<<<nbr / parallel_nbr + 1, parallel_nbr>>>( V, nbr, data_list);
+//     cudaDeviceSynchronize();
+// }
+
 void all_ccd_run(const std::vector<std::array<std::array<Scalar, 3>, 8>> &V, bool is_edge,
     std::vector<bool> &result_list, double &run_time, std::vector<Scalar> &time_impact, int parallel_nbr)
 {
@@ -516,10 +567,8 @@ int main( int argc, char **argv )
     cudaMemcpy(d_vertices_t0, vertices_t0.data(), sizeof(double)*3*vertices_t0.rows(), cudaMemcpyHostToDevice);
     cudaMemcpy(d_vertices_t1, vertices_t1.data(), sizeof(double)*3*vertices_t1.rows(), cudaMemcpyHostToDevice);
     
-
-    int grid = (N / parallel + 1); 
     
-    addData<<<grid, parallel>>>(d_overlaps, d_boxes, d_vertices_t0, d_vertices_t1, Noverlaps, d_queries );
+    addData<<<Noverlaps / parallel + 1, parallel>>>(d_overlaps, d_boxes, d_vertices_t0, d_vertices_t1, Noverlaps, d_queries );
 
     cudaFree(d_overlaps);
     cudaFree(d_boxes);
@@ -552,6 +601,7 @@ int main( int argc, char **argv )
     result_list.resize(size);
     tois.resize(size);
 
+    // float3 ** d_tmp_queries;
     while (1)
     {
         vector<bool> tmp_results;
@@ -568,6 +618,9 @@ int main( int argc, char **argv )
         tmp_results.resize(tmp_nbr);
         tmp_queries.resize(tmp_nbr);
         tmp_tois.resize(tmp_nbr);
+
+        // cudaMalloc((void**)&d_tmp_queries, sizeof(float3)*8*tmp_nbr);
+        // cudaMemcpy(d_tmp_queries, d_queries + start_id, sizeof(float3)*8*tmp_nbr, cudaMemcpyDeviceToDevice);
         for (int i = 0; i < tmp_nbr; i++)
         {
             tmp_queries[i] = queries[start_id + i];
