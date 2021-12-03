@@ -52,8 +52,9 @@ __global__ void addData
 (
     int2 * overlaps, 
     Aabb * boxes,
-    const double* V0,
-    const double* V1, 
+    double* V0,
+    double* V1, 
+    int Vrows,
     int N, 
     float3* queries
 )
@@ -61,30 +62,32 @@ __global__ void addData
     int tid = threadIdx.x + blockIdx.x * blockDim.x;
     if (tid >= N) return;
 
-    int3 avids = boxes[overlaps[tid].x].vertexIds;
-    int3 bvids = boxes[overlaps[tid].y].vertexIds;
+    int minner  = min(overlaps[tid].x, overlaps[tid].y);
+    int maxxer = max(overlaps[tid].x, overlaps[tid].y);
+    int3 avids = boxes[minner].vertexIds;
+    int3 bvids = boxes[maxxer].vertexIds;
 
-    if (is_face(avids) && is_vertex(bvids))
-    {
-        int3 tmp = avids;
-        avids = bvids;
-        bvids = tmp;
-    }
+    // if (is_face(avids) && is_vertex(bvids))
+    // {
+    //     int3 tmp = avids;
+    //     avids = bvids;
+    //     bvids = tmp;
+    // }
 
     if (is_vertex(avids) && is_face(bvids))
     {
         // auto vertex_start = V0.cast<float>().row(avids.x);
-        float3 vertex_start = make_float3(V0[3*avids.x],V0[3*avids.x+1], V0[3*avids.x + 2]);
+        float3 vertex_start = make_float3(V0[avids.x + 0], V0[avids.x + Vrows], V0[avids.x + 2*Vrows]);
         // // Triangle at t = 0
-        auto face_vertex0_start = make_float3(V0[3*bvids.x], V0[3*bvids.x + 1], V0[3*bvids.x + 2]) ;
-        auto face_vertex1_start = make_float3(V0[3*bvids.y], V0[3*bvids.y + 1], V0[3*bvids.y + 2]) ;
-        auto face_vertex2_start = make_float3(V0[3*bvids.z], V0[3*bvids.z + 1], V0[3*bvids.z + 2]) ;
+        auto face_vertex0_start = make_float3(V0[bvids.x + 0], V0[bvids.x + Vrows], V0[bvids.x + 2*Vrows]) ;
+        auto face_vertex1_start = make_float3(V0[bvids.y + 0], V0[bvids.y + Vrows], V0[bvids.y + 2*Vrows]) ;
+        auto face_vertex2_start = make_float3(V0[bvids.z + 0], V0[bvids.z + Vrows], V0[bvids.z + 2*Vrows]) ;
         // // Point at t=1
-        auto vertex_end = make_float3(V1[3*avids.x], V1[3*avids.x + 1], V1[3*avids.x + 2]) ;
+        auto vertex_end = make_float3(V1[avids.x + 0], V1[avids.x + Vrows], V1[avids.x + 2*Vrows]) ;
         // // Triangle at t = 1
-        auto face_vertex0_end = make_float3(V1[3*bvids.x], V1[3*bvids.x + 1], V1[3*bvids.x + 2]) ;
-        auto face_vertex1_end = make_float3(V1[3*bvids.y], V1[3*bvids.y + 1], V1[3*bvids.y + 2]) ;
-        auto face_vertex2_end = make_float3(V1[3*bvids.z], V1[3*bvids.z + 1], V1[3*bvids.z + 2]) ;
+        auto face_vertex0_end = make_float3(V1[bvids.x + 0], V1[bvids.x + Vrows], V1[bvids.x + 2*Vrows]) ;
+        auto face_vertex1_end = make_float3(V1[bvids.y + 0], V1[bvids.y + Vrows], V1[bvids.y + 2*Vrows]) ;
+        auto face_vertex2_end = make_float3(V1[bvids.z + 0], V1[bvids.z + Vrows], V1[bvids.z + 2*Vrows]) ;
 
         // array<array<float, 3>, 8> tmp;
         // float3 tmp[8];
@@ -101,17 +104,17 @@ __global__ void addData
     else if (is_edge(avids) && is_edge(bvids))
     {
         //     // Edge 1 at t=0
-        auto edge0_vertex0_start = make_float3(V0[3*avids.x], V0[3*avids.x + 1], V0[3*avids.x + 2]) ;
-        auto edge0_vertex1_start = make_float3(V0[3*avids.y], V0[3*avids.y + 1], V0[3*avids.y + 2]) ;
+        auto edge0_vertex0_start = make_float3(V0[avids.x + 0], V0[avids.x + Vrows], V0[avids.x + 2*Vrows]) ;
+        auto edge0_vertex1_start = make_float3(V0[avids.y + 0], V0[avids.y + Vrows], V0[avids.y + 2*Vrows]) ;
         // // Edge 2 at t=0
-        auto edge1_vertex0_start = make_float3(V0[3*bvids.x], V0[3*bvids.x + 1], V0[3*bvids.x + 2]) ;
-        auto edge1_vertex1_start = make_float3(V0[3*bvids.y], V0[3*bvids.y + 1], V0[3*bvids.y + 2]) ;
+        auto edge1_vertex0_start = make_float3(V0[bvids.x + 0], V0[bvids.x + Vrows], V0[bvids.x + 2*Vrows]) ;
+        auto edge1_vertex1_start = make_float3(V0[bvids.y + 0], V0[bvids.y + Vrows], V0[bvids.y + 2*Vrows]) ;
         // // Edge 1 at t=1
-        auto edge0_vertex0_end = make_float3(V1[3*avids.x], V1[3*avids.x + 1], V1[3*avids.x + 2]) ;
-        auto edge0_vertex1_end = make_float3(V1[3*avids.y], V1[3*avids.y + 1], V1[3*avids.y + 2]) ;
+        auto edge0_vertex0_end = make_float3(V1[avids.x + 0], V1[avids.x + Vrows], V1[avids.x + 2*Vrows]) ;
+        auto edge0_vertex1_end = make_float3(V1[avids.y + 0], V1[avids.y + Vrows], V1[avids.y + 2*Vrows]) ;
         // // Edge 2 at t=1
-        auto edge1_vertex0_end = make_float3(V1[3*bvids.x], V1[3*bvids.x + 1], V1[3*bvids.x + 2]) ;
-        auto edge1_vertex1_end = make_float3(V1[3*bvids.y], V1[3*bvids.y + 1], V1[3*bvids.y + 2]) ;
+        auto edge1_vertex0_end = make_float3(V1[bvids.x + 0], V1[bvids.x + Vrows], V1[bvids.x + 2*Vrows]) ;
+        auto edge1_vertex1_end = make_float3(V1[bvids.y + 0], V1[bvids.y + Vrows], V1[bvids.y + 2*Vrows]) ;
         
         // queries.emplace_back(Vec3Conv(edge0_vertex0_start));
         // float3 tmp[8];
@@ -128,7 +131,11 @@ __global__ void addData
     }
     else assert(0);
 
-    if (tid == 0) printf("queries[tid].x: %.3f\n", queries[0].x);
+    if (tid == 12135) 
+    {
+        printf("V[%i].x: %.6f\n", tid, V0[tid]);
+        printf("queries[%i].x: %.3f\n", tid, queries[tid].x);
+    }
 }
 
 void addData(
@@ -679,15 +686,21 @@ int main( int argc, char **argv )
     cudaMalloc((void**)&d_queries, sizeof(float3)*8*count);
     gpuErrchk( cudaGetLastError() ); 
 
+    printf("Copying vertices\n");
     double * d_vertices_t0;
     double * d_vertices_t1;
-    cudaMalloc((void**)&d_vertices_t0, sizeof(double)*3*vertices_t0.rows());
-    cudaMalloc((void**)&d_vertices_t1, sizeof(double)*3*vertices_t1.rows());
-    cudaMemcpy(d_vertices_t0, vertices_t0.data(), sizeof(double)*3*vertices_t0.rows(), cudaMemcpyHostToDevice);
-    cudaMemcpy(d_vertices_t1, vertices_t1.data(), sizeof(double)*3*vertices_t1.rows(), cudaMemcpyHostToDevice);
+    cudaMalloc((void**)&d_vertices_t0, sizeof(double)*vertices_t0.size());
+    cudaMalloc((void**)&d_vertices_t1, sizeof(double)*vertices_t1.size());
+    cudaMemcpy(d_vertices_t0, vertices_t0.data(), sizeof(double)*vertices_t0.size(), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_vertices_t1, vertices_t1.data(), sizeof(double)*vertices_t1.size(), cudaMemcpyHostToDevice);
+    printf("c++ V0 rows: %i cols: %i\n", vertices_t0.rows(), vertices_t0.cols());
+    printf("c++ V0[0] %.6f\n", vertices_t0.cast<float>().row(0)[1]);
+
+    int Vrows = vertices_t0.rows();
+    assert(Vrows == vertices_t1.rows());
     
     gpuErrchk( cudaGetLastError() ); 
-    addData<<<count / parallel + 1, parallel>>>(d_overlaps, d_boxes, d_vertices_t0, d_vertices_t1, count, d_queries );
+    addData<<<count / parallel + 1, parallel>>>(d_overlaps, d_boxes, d_vertices_t0, d_vertices_t1, Vrows, count, d_queries );
     cudaDeviceSynchronize();
     gpuErrchk( cudaGetLastError() ); 
 
@@ -709,6 +722,9 @@ int main( int argc, char **argv )
 
         addData(a, b, vertices_t0, vertices_t1, queries);
     }
+    printf("c++ queries[0].x %.6f\n", queries[0][0]);
+    
+
     int size = queries.size();
     cout << "data loaded, size " << queries.size() << endl;
     double tavg = 0;
@@ -746,9 +762,9 @@ int main( int argc, char **argv )
             tmp_queries[i] = queries[start_id + i];
         }
         bool is_edge_edge = true;
-        all_ccd_run(tmp_queries, is_edge_edge, tmp_results, tmp_tall, tmp_tois, parallel);
+        // all_ccd_run(tmp_queries, is_edge_edge, tmp_results, tmp_tall, tmp_tois, parallel);
         
-        // all_ccd_run(d_tmp_queries, tmp_nbr, is_edge_edge, tmp_results, tmp_tall, tmp_tois, parallel);
+        all_ccd_run(d_tmp_queries, tmp_nbr, is_edge_edge, tmp_results, tmp_tall, tmp_tois, parallel);
 
         tavg += tmp_tall;
         for (int i = 0; i < tmp_nbr; i++)
