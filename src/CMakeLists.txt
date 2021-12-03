@@ -1,6 +1,7 @@
 set(CCDGPU_SOURCES
 
-src/util.cu
+src/helper.cuh
+src/helper.cu
 
 PARENT_SCOPE
 )
