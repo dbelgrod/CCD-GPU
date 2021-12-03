@@ -101,12 +101,6 @@ __global__ void addData
         
     }
     else assert(0);
-
-    if (tid == 12135) 
-    {
-        printf("V[%i].x: %.6f\n", tid, V0[tid]);
-        printf("queries[%i].x: %.3f\n", tid, queries[tid].x);
-    }
 }
 
 void addData(
@@ -338,9 +332,6 @@ __global__ void array_to_ccd(float3 * a, int tmp_nbr, CCDdata * data )
     #ifndef NO_CHECK_MS
     data[tid].ms=MINIMUM_SEPARATION_BENCHMARK;
     #endif
-    
-    if (tid == 0)
-        printf("for tid[0] %.3f\n", a[0].x );
     
   
     data[tid].v0s[0] = a[8*tid + 0].x;
