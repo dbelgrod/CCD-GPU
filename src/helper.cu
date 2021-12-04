@@ -20,6 +20,7 @@
 
 using namespace std;
 using namespace ccd;
+using namespace ccdgpu;
 
 __global__ void addData
 (
