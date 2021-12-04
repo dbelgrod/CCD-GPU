@@ -102,6 +102,14 @@ if(APPLE)
 set_property(TARGET ccdgpu_bin PROPERTY BUILD_RPATH ${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES})
 endif()
 
+target_compile_options(${PROJECT_NAME} PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:
+                       --generate-line-info
+                       --use_fast_math
+                       --relocatable-device-code=true
+                       --ptxas-options=-v
+                      # --maxrregcount=7
+                       >)  
+
 
 target_compile_options(ccdgpu_bin PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:
                        --generate-line-info
