@@ -1,7 +1,7 @@
 #pragma once
 #include <gpubf/aabb.cuh>
 
-using namespace ccdgpu;
+// using namespace ccdgpu;
 
 
 #define Vec3Conv(v) {v[0], v[1], v[2]}
