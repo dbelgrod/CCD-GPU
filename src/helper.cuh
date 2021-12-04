@@ -59,4 +59,15 @@ void all_ccd_run(float3 * V, int tmp_nbr, bool is_edge,
 void all_ccd_run(const std::vector<std::array<std::array<Scalar, 3>, 8>> &V, bool is_edge,
     std::vector<bool> &result_list, double &run_time, std::vector<Scalar> &time_impact, int parallel_nbr);
 
-    
+void run_ccd(
+    vector<Aabb> boxes, 
+    const Eigen::MatrixXd& vertices_t0,
+    const Eigen::MatrixXd& vertices_t1, 
+    int N, 
+    int& nbox, 
+    int& parallel, 
+    int& devcount,
+    vector<pair<int,int>>& overlaps, 
+    vector<bool>& result_list, 
+    vector<float>& tois
+);

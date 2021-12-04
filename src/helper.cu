@@ -16,6 +16,8 @@
 #include <gputi/book.h>
 #include <gputi/io.h>
 
+#include <gpubf/simulation.cuh>
+
 using namespace std;
 using namespace ccd;
 
@@ -572,4 +574,134 @@ cudaError_t ct = cudaGetLastError();
 printf("******************\n%s\n************\n", cudaGetErrorString(ct));
 
 return;
+}
+
+
+void run_ccd(
+    vector<Aabb> boxes, 
+    const Eigen::MatrixXd& vertices_t0,
+    const Eigen::MatrixXd& vertices_t1, 
+    int N, 
+    int& nbox, 
+    int& parallel, 
+    int& devcount, 
+    vector<pair<int,int>>& overlaps,
+    vector<bool>& result_list, 
+    vector<float>& tois
+)
+{
+    int2 * d_overlaps;
+    int * d_count;
+    run_sweep_pieces(boxes.data(), N, nbox, overlaps, d_overlaps, d_count, parallel, devcount);
+    gpuErrchk(cudaDeviceSynchronize());
+    gpuErrchk( cudaGetLastError() ); 
+    
+    // copy overlap count
+    int count;
+    gpuErrchk(cudaMemcpy(&count, d_count, sizeof(int), cudaMemcpyDeviceToHost));
+    printf("Count %i\n", count);
+    gpuErrchk( cudaGetLastError() ); 
+
+    // Allocate boxes to GPU 
+    Aabb * d_boxes;
+    cudaMalloc((void**)&d_boxes, sizeof(Aabb)*N);
+    cudaMemcpy(d_boxes, boxes.data(), sizeof(Aabb)*N, cudaMemcpyHostToDevice);
+    gpuErrchk( cudaGetLastError() ); 
+
+    
+    float3 * d_queries;
+    cudaMalloc((void**)&d_queries, sizeof(float3)*8*count);
+    gpuErrchk( cudaGetLastError() ); 
+
+    printf("Copying vertices\n");
+    double * d_vertices_t0;
+    double * d_vertices_t1;
+    cudaMalloc((void**)&d_vertices_t0, sizeof(double)*vertices_t0.size());
+    cudaMalloc((void**)&d_vertices_t1, sizeof(double)*vertices_t1.size());
+    cudaMemcpy(d_vertices_t0, vertices_t0.data(), sizeof(double)*vertices_t0.size(), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_vertices_t1, vertices_t1.data(), sizeof(double)*vertices_t1.size(), cudaMemcpyHostToDevice);
+
+    int Vrows = vertices_t0.rows();
+    assert(Vrows == vertices_t1.rows());
+    
+    gpuErrchk( cudaGetLastError() ); 
+    addData<<<count / parallel + 1, parallel>>>(d_overlaps, d_boxes, d_vertices_t0, d_vertices_t1, Vrows, count, d_queries );
+    cudaDeviceSynchronize();
+    gpuErrchk( cudaGetLastError() ); 
+
+    cudaFree(d_overlaps);
+    cudaFree(d_boxes);
+    cudaFree(d_vertices_t0);
+    cudaFree(d_vertices_t1);
+
+    cudaDeviceSynchronize();
+    
+    // old cpp code
+    // vector<array<array<float, 3>, 8>> queries;
+    // for (int i=0; i < overlaps.size(); i++)
+    // {
+    //     int aid = overlaps[i].first;
+    //     int bid = overlaps[i].second;
+
+    //     Aabb a = boxes[aid];
+    //     Aabb b = boxes[bid];  
+
+    //     addData(a, b, vertices_t0, vertices_t1, queries);
+    // }
+    
+    
+    // int size = queries.size();
+    int size = count;
+    // cout << "data loaded, size " << queries.size() << endl;
+    cout << "data loaded, size " << size << endl;
+    double tavg = 0;
+    int max_query_cp_size = 1e7;
+    int start_id = 0;
+
+    
+    // vector<float> tois;
+    // vector<bool> result_list;
+    result_list.resize(size);
+    tois.resize(size);
+
+    float3 * d_tmp_queries;
+    while (1)
+    {
+        vector<bool> tmp_results;
+        vector<array<array<Scalar, 3>, 8>> tmp_queries;
+        vector<Scalar> tmp_tois;
+
+        int remain = size - start_id;
+        double tmp_tall;
+
+        if (remain <= 0)
+            break;
+
+        int tmp_nbr = min(remain, max_query_cp_size);
+        tmp_results.resize(tmp_nbr);
+        tmp_queries.resize(tmp_nbr);
+        tmp_tois.resize(tmp_nbr);
+
+        cudaMalloc((void**)&d_tmp_queries, sizeof(float3)*8*tmp_nbr);
+        cudaMemcpy(d_tmp_queries, d_queries + start_id, sizeof(float3)*8*tmp_nbr, cudaMemcpyDeviceToDevice);
+        // for (int i = 0; i < tmp_nbr; i++)
+        // {
+        //     tmp_queries[i] = queries[start_id + i];
+        // }
+        bool is_edge_edge = true;
+        // all_ccd_run(tmp_queries, is_edge_edge, tmp_results, tmp_tall, tmp_tois, parallel);
+        
+        all_ccd_run(d_tmp_queries, tmp_nbr, is_edge_edge, tmp_results, tmp_tall, tmp_tois, parallel);
+
+        tavg += tmp_tall;
+        for (int i = 0; i < tmp_nbr; i++)
+        {
+            result_list[start_id + i] = tmp_results[i];
+            tois[start_id + i] = tmp_tois[i];
+        }
+
+        start_id += tmp_nbr;
+    }
+    tavg /= size;
+    cout << "avg time " << tavg << endl;
 }
