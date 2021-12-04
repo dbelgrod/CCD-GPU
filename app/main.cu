@@ -7,6 +7,8 @@
 
 #include <ccdgpu/helper.cuh>
 
+using namespace ccdgpu;
+
 int main( int argc, char **argv )
 {
     vector<char*> compare;

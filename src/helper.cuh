@@ -22,7 +22,7 @@ typedef float Scalar;
 __global__ void addData
 (
     int2 * overlaps, 
-    Aabb * boxes,
+    ccdgpu::Aabb * boxes,
     double* V0,
     double* V1, 
     int Vrows,
@@ -31,8 +31,8 @@ __global__ void addData
 );
 
 void addData(
-    const Aabb &a, 
-    const Aabb &b, 
+    const ccdgpu::Aabb &a, 
+    const ccdgpu::Aabb &b, 
     const Eigen::MatrixXd& V0,
     const Eigen::MatrixXd& V1,
     vector<array<array<float, 3>, 8>>& queries);
@@ -60,7 +60,7 @@ void all_ccd_run(const std::vector<std::array<std::array<Scalar, 3>, 8>> &V, boo
     std::vector<bool> &result_list, double &run_time, std::vector<Scalar> &time_impact, int parallel_nbr);
 
 void run_ccd(
-    vector<Aabb> boxes, 
+    vector<ccdgpu::Aabb> boxes, 
     const Eigen::MatrixXd& vertices_t0,
     const Eigen::MatrixXd& vertices_t1, 
     int N, 
