@@ -80,6 +80,8 @@ target_link_libraries(${PROJECT_NAME} PUBLIC broadphase)
 
 target_link_libraries(${PROJECT_NAME} PUBLIC gputi)
 
+target_link_libraries(${PROJECT_NAME} PUBLIC CPUSWEEP)
+
 # libigl
 target_link_libraries(${PROJECT_NAME} PUBLIC igl::core)
 
