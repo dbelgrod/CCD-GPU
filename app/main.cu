@@ -32,13 +32,13 @@ int main( int argc, char **argv )
     constructBoxes(vertices_t0, vertices_t1, faces, edges, boxes);
     int N = boxes.size();
     int nbox = 0;
-    int parallel = 0;
+    int parallel = 64;
     int devcount = 1;
 
     // std::copy(from_vector.begin(), from_vector.end(), to_vector.begin());
     
     int o;
-    while ((o = getopt (argc, argv, "c:n:b:")) != -1)
+    while ((o = getopt (argc, argv, "c:n:b:p:")) != -1)
     {
         switch (o)
         {
@@ -55,6 +55,9 @@ int main( int argc, char **argv )
                 break;
             case 'b':
                 nbox = atoi(optarg);
+                break;
+            case 'p':
+                parallel = atoi(optarg);
                 break;
         }
     }

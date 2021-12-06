@@ -210,7 +210,7 @@ __global__ void run_parallel_vf_ccd_all(CCDdata *data,CCDConfig *config_in, bool
         data_in.v3e[i] = data[tx].v3e[i];
     }
     // copy the configurations to the shared memory
-    __shared__ CCDConfig config;
+    CCDConfig config;
     config.err_in[0]=config_in->err_in[0];
     config.err_in[1]=config_in->err_in[1];
     config.err_in[2]=config_in->err_in[2];
@@ -241,7 +241,7 @@ __global__ void run_parallel_ee_ccd_all(CCDdata *data,CCDConfig *config_in, bool
         data_in.v3e[i] = data[tx].v3e[i];
     }
     // copy the configurations to the shared memory
-    __shared__ CCDConfig config;
+    CCDConfig config;
     config.err_in[0]=config_in->err_in[0];
     config.err_in[1]=config_in->err_in[1];
     config.err_in[2]=config_in->err_in[2];
@@ -274,7 +274,7 @@ __global__ void run_parallel_ms_vf_ccd_all(CCDdata *data,CCDConfig *config_in, b
     }
     data_in.ms=data[tx].ms;
     // copy the configurations to the shared memory
-    __shared__ CCDConfig config;
+    CCDConfig config;
     config.err_in[0]=config_in->err_in[0];
     config.err_in[1]=config_in->err_in[1];
     config.err_in[2]=config_in->err_in[2];
@@ -310,7 +310,7 @@ __global__ void run_parallel_ms_ee_ccd_all(CCDdata *data,CCDConfig *config_in, b
     }
     data_in.ms=data[tx].ms;
     // copy the configurations to the shared memory
-    __shared__ CCDConfig config;
+    CCDConfig config;
     config.err_in[0]=config_in->err_in[0];
     config.err_in[1]=config_in->err_in[1];
     config.err_in[2]=config_in->err_in[2];
@@ -410,6 +410,7 @@ void all_ccd_run(float3 * V, int tmp_nbr, bool is_edge,
     ccd::Timer timer;
     cudaProfilerStart();
     timer.start();
+    printf("nbr: %i, parallel_nbr %i\n", nbr, parallel_nbr);
     #ifdef NO_CHECK_MS
     if(is_edge){
     run_parallel_ee_ccd_all<<<nbr / parallel_nbr + 1, parallel_nbr>>>( 
@@ -430,10 +431,11 @@ void all_ccd_run(float3 * V, int tmp_nbr, bool is_edge,
     }
     #endif
 
-    cudaDeviceSynchronize();
+    gpuErrchk(cudaDeviceSynchronize());
     double tt = timer.getElapsedTimeInMicroSec();
     run_time = tt;
     cudaProfilerStop();
+    gpuErrchk( cudaGetLastError() ); 
 
     cudaMemcpy(res, d_res, result_size, cudaMemcpyDeviceToHost);
     cudaMemcpy(tois, d_tois, time_size, cudaMemcpyDeviceToHost);
@@ -593,9 +595,11 @@ void run_ccd(
 {
     int2 * d_overlaps;
     int * d_count;
-    run_sweep_pieces(boxes.data(), N, nbox, overlaps, d_overlaps, d_count, parallel, devcount);
+    int threads = 0;
+    run_sweep_pieces(boxes.data(), N, nbox, overlaps, d_overlaps, d_count, threads, devcount);
     gpuErrchk(cudaDeviceSynchronize());
     gpuErrchk( cudaGetLastError() ); 
+    printf("Threads now %i\n", threads);
     
     // copy overlap count
     int count;
@@ -626,7 +630,7 @@ void run_ccd(
     assert(Vrows == vertices_t1.rows());
     
     gpuErrchk( cudaGetLastError() ); 
-    addData<<<count / parallel + 1, parallel>>>(d_overlaps, d_boxes, d_vertices_t0, d_vertices_t1, Vrows, count, d_queries );
+    addData<<<count / threads + 1, threads>>>(d_overlaps, d_boxes, d_vertices_t0, d_vertices_t1, Vrows, count, d_queries );
     cudaDeviceSynchronize();
     gpuErrchk( cudaGetLastError() ); 
 
@@ -692,6 +696,7 @@ void run_ccd(
         bool is_edge_edge = true;
         // all_ccd_run(tmp_queries, is_edge_edge, tmp_results, tmp_tall, tmp_tois, parallel);
         
+        printf("all_ccd_run using %i threads\n", parallel);
         all_ccd_run(d_tmp_queries, tmp_nbr, is_edge_edge, tmp_results, tmp_tall, tmp_tois, parallel);
 
         tavg += tmp_tall;
