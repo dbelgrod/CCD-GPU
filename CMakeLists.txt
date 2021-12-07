@@ -2,7 +2,6 @@ cmake_minimum_required(VERSION 3.8 FATAL_ERROR)
 # set(CMAKE_CUDA_COMPILER "/usr/local/cuda/bin/nvcc")
 project(CCDGPU LANGUAGES CXX CUDA)
 
-SET(CUDA_SEPARABLE_COMPILATION ON)
 
 set(LIBIGL_WITH_COMISO OFF CACHE BOOL "Use CoMiso")
 set(LIBIGL_WITH_EMBREE OFF  CACHE BOOL  "Use Embree"  )

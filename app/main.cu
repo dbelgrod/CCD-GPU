@@ -6,12 +6,16 @@
 #include <gpubf/io.cuh>
 
 #include <ccdgpu/helper.cuh>
+#include <ccdgpu/record.hpp>
+#include <gputi/timer.hpp>
 
 using namespace ccdgpu;
+using namespace ccd;
 
 int main( int argc, char **argv )
 {
     vector<char*> compare;
+    Record r;
 
     char* filet0;
     char* filet1;
@@ -28,8 +32,14 @@ int main( int argc, char **argv )
     Eigen::MatrixXi faces; 
     Eigen::MatrixXi edges;
 
+    r.Start("parseMesh");
     parseMesh(filet0, filet1, vertices_t0, vertices_t1, faces, edges);
+    r.Stop();
+    
+    json j;
+    r.Start("constructBoxes", j);
     constructBoxes(vertices_t0, vertices_t1, faces, edges, boxes);
+    r.Stop();
     int N = boxes.size();
     int nbox = 0;
     int parallel = 64;
@@ -65,8 +75,13 @@ int main( int argc, char **argv )
     vector<pair<int,int>> overlaps;
     vector<float> tois;
     vector<bool> result_list;
-    run_ccd(boxes, vertices_t0, vertices_t1, N, nbox, parallel, devcount, overlaps, result_list, tois);
     
+    
+    r.Start("run_ccd");
+    run_ccd(boxes, vertices_t0, vertices_t1, r, N, nbox, parallel, devcount, overlaps, result_list, tois);
+    r.Stop();
+    r.Print();
+
     for (auto i : compare)
     {
         compare_mathematica(overlaps, result_list, i);

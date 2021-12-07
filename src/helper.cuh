@@ -1,5 +1,6 @@
 #pragma once
 #include <gpubf/aabb.cuh>
+#include <ccdgpu/record.hpp>
 
 // using namespace ccdgpu;
 
@@ -63,6 +64,7 @@ void run_ccd(
     vector<ccdgpu::Aabb> boxes, 
     const Eigen::MatrixXd& vertices_t0,
     const Eigen::MatrixXd& vertices_t1, 
+    Record& r,
     int N, 
     int& nbox, 
     int& parallel, 

@@ -16,7 +16,9 @@
 #include <gputi/book.h>
 #include <gputi/io.h>
 
+
 #include <gpubf/simulation.cuh>
+#include <ccdgpu/record.hpp>
 
 using namespace std;
 using namespace ccd;
@@ -584,6 +586,7 @@ void run_ccd(
     vector<Aabb> boxes, 
     const Eigen::MatrixXd& vertices_t0,
     const Eigen::MatrixXd& vertices_t1, 
+    Record& r,
     int N, 
     int& nbox, 
     int& parallel, 
@@ -596,11 +599,14 @@ void run_ccd(
     int2 * d_overlaps;
     int * d_count;
     int threads = 0;
+    r.Start("run_sweep_pieces (broadphase)");
     run_sweep_pieces(boxes.data(), N, nbox, overlaps, d_overlaps, d_count, threads, devcount);
     gpuErrchk(cudaDeviceSynchronize());
+    r.Stop();
     gpuErrchk( cudaGetLastError() ); 
     printf("Threads now %i\n", threads);
     
+    r.Start("broadphase -> narrowphase");
     // copy overlap count
     int count;
     gpuErrchk(cudaMemcpy(&count, d_count, sizeof(int), cudaMemcpyDeviceToHost));
@@ -633,6 +639,8 @@ void run_ccd(
     addData<<<count / threads + 1, threads>>>(d_overlaps, d_boxes, d_vertices_t0, d_vertices_t1, Vrows, count, d_queries );
     cudaDeviceSynchronize();
     gpuErrchk( cudaGetLastError() ); 
+    
+    r.Stop();
 
     cudaFree(d_overlaps);
     cudaFree(d_boxes);
@@ -697,7 +705,9 @@ void run_ccd(
         // all_ccd_run(tmp_queries, is_edge_edge, tmp_results, tmp_tall, tmp_tois, parallel);
         
         printf("all_ccd_run using %i threads\n", parallel);
+        r.Start("all_ccd_run (narrowphase)");
         all_ccd_run(d_tmp_queries, tmp_nbr, is_edge_edge, tmp_results, tmp_tall, tmp_tois, parallel);
+        r.Stop();
 
         tavg += tmp_tall;
         for (int i = 0; i < tmp_nbr; i++)

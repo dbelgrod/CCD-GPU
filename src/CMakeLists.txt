@@ -2,6 +2,7 @@ set(CCDGPU_SOURCES
 
 src/helper.cuh
 src/helper.cu
+src/record.hpp
 
 PARENT_SCOPE
 )
