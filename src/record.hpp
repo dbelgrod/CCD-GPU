@@ -63,9 +63,10 @@ struct Record
             timer.stop();
             double elapsed = 0;
             elapsed += timer.getElapsedTimeInMicroSec();
+            elapsed /= 1000.f;
             // j_object[tag]=elapsed;
             j_object.push_back(json::object_t::value_type(tag, elapsed));
-            printf("%s : %.3f ms\n", tag, elapsed / 1000.f);
+            printf("%s : %.3f ms\n", tag, elapsed);
       }
 
       void Print()
