@@ -3,6 +3,8 @@ cmake_minimum_required(VERSION 3.8 FATAL_ERROR)
 project(CCDGPU LANGUAGES CXX CUDA)
 
 
+SET(CUDA_SEPARABLE_COMPILATION ON)
+
 set(LIBIGL_WITH_COMISO OFF CACHE BOOL "Use CoMiso")
 set(LIBIGL_WITH_EMBREE OFF  CACHE BOOL  "Use Embree"  )
 set(LIBIGL_WITH_OPENGL            OFF CACHE BOOL "Use OpenGL"          )
@@ -11,9 +13,10 @@ set(LIBIGL_WITH_OPENGL_GLFW_IMGUI OFF CACHE BOOL "Use ImGui"           )
 set(LIBIGL_WITH_PNG               OFF CACHE BOOL "Use PNG"             )
 set(LIBIGL_WITH_TETGEN            OFF CACHE BOOL "Use Tetgen"          )
 set(LIBIGL_WITH_TRIANGLE          OFF CACHE BOOL "Use Triangle"        )
-set(LIBIGL_WITH_PREDICATES        OFF CACHE BOOL "Use exact predicates")
+set(LIBIGL_WITH_PREDICATES        ON CACHE BOOL "Use exact predicates")
 set(LIBIGL_WITH_XML               OFF CACHE BOOL "Use XML"             )
 set(LIBIGL_WITH_PYTHON            OFF CACHE BOOL "Use Python"          )
+# set(IPC_TOOLKIT_WITH_LOGGER       OFF CACHE BOOL "Enable logger" )
 
 
 if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
@@ -53,7 +56,9 @@ target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_11)
 # set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O0 -g")
 # set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -g -G")
 # set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xptxas -O3,-v -use_fast_math -maxrregcount 24")
-set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -use_fast_math -Xptxas -O3,-v")
+
+# set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -use_fast_math -Xptxas -O3,-v")
+set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -use_fast_math --expt-relaxed-constexpr  -gencode arch=compute_86,code=sm_86")
 
 # We need to explicitly state that we need all CUDA files in the CCDGPU
 # library to be built with -dc as the member functions could be called by
@@ -87,6 +92,8 @@ target_link_libraries(${PROJECT_NAME} PUBLIC igl::core)
 # JSON
 target_link_libraries(${PROJECT_NAME} PUBLIC nlohmann_json::nlohmann_json)
 
+# target_link_libraries(${PROJECT_NAME} PUBLIC ipc_toolkit)
+
 ################################################################################
 # Binary
 ################################################################################
@@ -109,7 +116,7 @@ target_compile_options(${PROJECT_NAME} PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:
                        --generate-line-info
                        --use_fast_math
                        --relocatable-device-code=true
-                       --ptxas-options=-v
+                      #  --ptxas-options=-v
                       # --maxrregcount=7
                        >)  
 
