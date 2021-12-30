@@ -74,7 +74,7 @@ struct Record
 
       void Print()
       {
-            cout << j_object.dump() << endl;  
+            std::cout << j_object.dump() << std::endl;  
       }
       
       json Dump()
