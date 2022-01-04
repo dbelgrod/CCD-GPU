@@ -188,142 +188,6 @@ bool is_file_exist(const char *fileName) {
   return infile.good();
 }
 
-__global__ void run_parallel_vf_ccd_all(CCDdata *data, CCDConfig *config_in,
-                                        bool *res, int size, Scalar *tois) {
-  int tx = threadIdx.x + blockIdx.x * blockDim.x;
-  if (tx >= size)
-    return;
-  // copy the input queries to __device__
-  CCDdata data_in;
-  for (int i = 0; i < 3; i++) {
-    data_in.v0s[i] = data[tx].v0s[i];
-    data_in.v1s[i] = data[tx].v1s[i];
-    data_in.v2s[i] = data[tx].v2s[i];
-    data_in.v3s[i] = data[tx].v3s[i];
-    data_in.v0e[i] = data[tx].v0e[i];
-    data_in.v1e[i] = data[tx].v1e[i];
-    data_in.v2e[i] = data[tx].v2e[i];
-    data_in.v3e[i] = data[tx].v3e[i];
-  }
-  // copy the configurations to the shared memory
-  CCDConfig config;
-  config.err_in[0] = config_in->err_in[0];
-  config.err_in[1] = config_in->err_in[1];
-  config.err_in[2] = config_in->err_in[2];
-  config.co_domain_tolerance =
-      config_in->co_domain_tolerance;  // tolerance of the co-domain
-  config.max_t = config_in->max_t;     // the upper bound of the time interval
-  config.max_itr = config_in->max_itr; // the maximal nbr of iterations
-  CCDOut out;
-  vertexFaceCCD(data_in, config, out);
-  res[tx] = out.result;
-  tois[tx] = 0;
-}
-__global__ void run_parallel_ee_ccd_all(CCDdata *data, CCDConfig *config_in,
-                                        bool *res, int size, Scalar *tois) {
-  int tx = threadIdx.x + blockIdx.x * blockDim.x;
-  if (tx >= size)
-    return;
-  // copy the input queries to __device__
-  CCDdata data_in;
-  for (int i = 0; i < 3; i++) {
-    data_in.v0s[i] = data[tx].v0s[i];
-    data_in.v1s[i] = data[tx].v1s[i];
-    data_in.v2s[i] = data[tx].v2s[i];
-    data_in.v3s[i] = data[tx].v3s[i];
-    data_in.v0e[i] = data[tx].v0e[i];
-    data_in.v1e[i] = data[tx].v1e[i];
-    data_in.v2e[i] = data[tx].v2e[i];
-    data_in.v3e[i] = data[tx].v3e[i];
-  }
-  // copy the configurations to the shared memory
-  CCDConfig config;
-  config.err_in[0] = config_in->err_in[0];
-  config.err_in[1] = config_in->err_in[1];
-  config.err_in[2] = config_in->err_in[2];
-  config.co_domain_tolerance =
-      config_in->co_domain_tolerance;  // tolerance of the co-domain
-  config.max_t = config_in->max_t;     // the upper bound of the time interval
-  config.max_itr = config_in->max_itr; // the maximal nbr of iterations
-  CCDOut out;
-  edgeEdgeCCD(data_in, config, out);
-  res[tx] = out.result;
-  tois[tx] = 0;
-}
-
-__global__ void run_parallel_ms_vf_ccd_all(CCDdata *data, CCDConfig *config_in,
-                                           bool *res, int size, Scalar *tois) {
-  int tx = threadIdx.x + blockIdx.x * blockDim.x;
-  if (tx >= size)
-    return;
-  // copy the input queries to __device__
-  CCDdata data_in;
-  for (int i = 0; i < 3; i++) {
-    data_in.v0s[i] = data[tx].v0s[i];
-    data_in.v1s[i] = data[tx].v1s[i];
-    data_in.v2s[i] = data[tx].v2s[i];
-    data_in.v3s[i] = data[tx].v3s[i];
-    data_in.v0e[i] = data[tx].v0e[i];
-    data_in.v1e[i] = data[tx].v1e[i];
-    data_in.v2e[i] = data[tx].v2e[i];
-    data_in.v3e[i] = data[tx].v3e[i];
-  }
-  data_in.ms = data[tx].ms;
-  // copy the configurations to the shared memory
-  CCDConfig config;
-  config.err_in[0] = config_in->err_in[0];
-  config.err_in[1] = config_in->err_in[1];
-  config.err_in[2] = config_in->err_in[2];
-  config.co_domain_tolerance =
-      config_in->co_domain_tolerance;  // tolerance of the co-domain
-  config.max_t = config_in->max_t;     // the upper bound of the time interval
-  config.max_itr = config_in->max_itr; // the maximal nbr of iterations
-  CCDOut out;
-#ifdef NO_CHECK_MS
-  vertexFaceCCD(data_in, config, out);
-#else
-  vertexFaceMinimumSeparationCCD(data_in, config, out);
-#endif
-  res[tx] = out.result;
-  tois[tx] = 0;
-}
-__global__ void run_parallel_ms_ee_ccd_all(CCDdata *data, CCDConfig *config_in,
-                                           bool *res, int size, Scalar *tois) {
-  int tx = threadIdx.x + blockIdx.x * blockDim.x;
-  if (tx >= size)
-    return;
-  // copy the input queries to __device__
-  CCDdata data_in;
-  for (int i = 0; i < 3; i++) {
-    data_in.v0s[i] = data[tx].v0s[i];
-    data_in.v1s[i] = data[tx].v1s[i];
-    data_in.v2s[i] = data[tx].v2s[i];
-    data_in.v3s[i] = data[tx].v3s[i];
-    data_in.v0e[i] = data[tx].v0e[i];
-    data_in.v1e[i] = data[tx].v1e[i];
-    data_in.v2e[i] = data[tx].v2e[i];
-    data_in.v3e[i] = data[tx].v3e[i];
-  }
-  data_in.ms = data[tx].ms;
-  // copy the configurations to the shared memory
-  CCDConfig config;
-  config.err_in[0] = config_in->err_in[0];
-  config.err_in[1] = config_in->err_in[1];
-  config.err_in[2] = config_in->err_in[2];
-  config.co_domain_tolerance =
-      config_in->co_domain_tolerance;  // tolerance of the co-domain
-  config.max_t = config_in->max_t;     // the upper bound of the time interval
-  config.max_itr = config_in->max_itr; // the maximal nbr of iterations
-  CCDOut out;
-#ifdef NO_CHECK_MS
-  edgeEdgeCCD(data_in, config, out);
-#else
-  edgeEdgeMinimumSeparationCCD(data_in, config, out);
-#endif
-  res[tx] = out.result;
-  tois[tx] = 0;
-}
-
 __global__ void array_to_ccd(float3 *a, int tmp_nbr, CCDdata *data) {
   int tid = threadIdx.x + blockIdx.x * blockDim.x;
   if (tid >= tmp_nbr)
@@ -363,13 +227,9 @@ __global__ void array_to_ccd(float3 *a, int tmp_nbr, CCDdata *data) {
 
 void run_memory_pool_ccd(float3 *V, int tmp_nbr, bool is_edge,
                          std::vector<int> &result_list, int parallel_nbr,
-                         double &run_time)
-// void all_ccd_run(float3 * V, int tmp_nbr, bool is_edge,
-//     std::vector<bool> &result_list, double &run_time, std::vector<Scalar>
-//     &time_impact, int parallel_nbr)
-{
+                         double &run_time, ccd::Scalar toi) {
   unsigned nbr = tmp_nbr;
-  result_list.resize(nbr);
+  // result_list.resize(nbr);
   // host
   // CCDdata *data_list = new CCDdata[nbr];
   CCDdata *data_list;
@@ -379,21 +239,22 @@ void run_memory_pool_ccd(float3 *V, int tmp_nbr, bool is_edge,
   gpuErrchk(cudaGetLastError());
   printf("Finished array_to_ccd\n");
 
-  int *res = new int[nbr];
-  MP_unit *units = new MP_unit[UNIT_SIZE];
+  // int *res = new int[nbr];
+  // MP_unit *units = new MP_unit[UNIT_SIZE];
   CCDConfig *config = new CCDConfig[1];
   config[0].err_in[0] =
       -1; // the input error bound calculate from the AABB of the whole mesh
   config[0].co_domain_tolerance = 1e-6; // tolerance of the co-domain
-  config[0].max_t = 1;                  // the upper bound of the time interval
-  config[0].max_itr = 1e6;              // the maximal nbr of iterations
+  // config[0].max_t = 1;                  // the upper bound of the time
+  // interval
+  config[0].max_itr = 1e6; // the maximal nbr of iterations
   config[0].mp_end = nbr;
   config[0].mp_start = 0;
   config[0].mp_remaining = nbr;
 
   // device
   CCDdata *d_data_list;
-  int *d_res;
+  // int *d_res;
   MP_unit *d_units;
   CCDConfig *d_config;
 
@@ -403,7 +264,7 @@ void run_memory_pool_ccd(float3 *V, int tmp_nbr, bool is_edge,
   // int dbg_size=sizeof(Scalar)*8;
 
   cudaMalloc(&d_data_list, data_size);
-  cudaMalloc(&d_res, result_size);
+  // cudaMalloc(&d_res, result_size);
   cudaMalloc(&d_units, unit_size);
   cudaMalloc(&d_config, sizeof(CCDConfig));
 
@@ -432,7 +293,7 @@ void run_memory_pool_ccd(float3 *V, int tmp_nbr, bool is_edge,
   //   int inc = 0;
   while (nbr_per_loop > 0) {
     vf_ccd_memory_pool<<<nbr_per_loop / parallel_nbr + 1, parallel_nbr>>>(
-        d_units, nbr, d_data_list, d_config, d_res);
+        d_units, nbr, d_data_list, d_config);
     cudaDeviceSynchronize();
     gpuErrchk(cudaGetLastError());
     shift_queue_pointers<<<1, 1>>>(d_config);
@@ -447,129 +308,21 @@ void run_memory_pool_ccd(float3 *V, int tmp_nbr, bool is_edge,
   cudaProfilerStop();
   gpuErrchk(cudaGetLastError());
 
-  cudaMemcpy(res, d_res, result_size, cudaMemcpyDeviceToHost);
-  // cudaMemcpy(tois, d_tois, time_size, cudaMemcpyDeviceToHost);
+  // cudaMemcpy(res, d_res, result_size, cudaMemcpyDeviceToHost);
+  cudaMemcpy(&toi, &d_config[0].toi, sizeof(ccd::Scalar),
+             cudaMemcpyDeviceToHost);
   // cudaMemcpy(dbg, d_dbg, dbg_size, cudaMemcpyDeviceToHost);
 
   cudaFree(data_list);
   cudaFree(d_data_list);
-  cudaFree(d_res);
+  // cudaFree(d_res);
   cudaFree(d_units);
   cudaFree(d_config);
   // cudaFree(d_dbg);
 
-  for (size_t i = 0; i < nbr; i++) {
-    result_list[i] = res[i];
-  }
-
-  delete[] res;
+  // delete[] res;
   // delete[] data_list;
-  delete[] units;
-  delete[] config;
-  // delete[] dbg;
-  cudaError_t ct = cudaGetLastError();
-  printf("******************\n%s\n************\n", cudaGetErrorString(ct));
-
-  return;
-}
-
-void all_ccd_run(const std::vector<std::array<std::array<Scalar, 3>, 8>> &V,
-                 bool is_edge, std::vector<bool> &result_list, double &run_time,
-                 std::vector<Scalar> &time_impact, int parallel_nbr) {
-  gpuErrchk(cudaGetLastError());
-
-  int nbr = V.size();
-  result_list.resize(nbr);
-  // host
-  CCDdata *data_list = new CCDdata[nbr];
-  for (int i = 0; i < nbr; i++) {
-    data_list[i] = array_to_ccd(V[i]);
-#ifndef NO_CHECK_MS
-    data_list[i].ms = MINIMUM_SEPARATION_BENCHMARK;
-#endif
-  }
-
-  bool *res = new bool[nbr];
-  Scalar *tois = new Scalar[nbr];
-  CCDConfig *config = new CCDConfig[1];
-  config[0].err_in[0] =
-      -1; // the input error bound calculate from the AABB of the whole mesh
-  config[0].co_domain_tolerance = 1e-6; // tolerance of the co-domain
-  config[0].max_t = 1;                  // the upper bound of the time interval
-  config[0].max_itr = 1e6;              // the maximal nbr of iterations
-
-  // device
-  CCDdata *d_data_list;
-  bool *d_res;
-  Scalar *d_tois;
-  CCDConfig *d_config;
-
-  int data_size = sizeof(CCDdata) * nbr;
-  int result_size = sizeof(bool) * nbr;
-  int time_size = sizeof(Scalar) * nbr;
-  // int dbg_size=sizeof(Scalar)*8;
-
-  cudaMalloc(&d_data_list, data_size);
-  cudaMalloc(&d_res, result_size);
-  cudaMalloc(&d_tois, time_size);
-  cudaMalloc(&d_config, sizeof(CCDConfig));
-
-  cudaMemcpy(d_data_list, data_list, data_size, cudaMemcpyHostToDevice);
-  cudaMemcpy(d_config, config, sizeof(CCDConfig), cudaMemcpyHostToDevice);
-  gpuErrchk(cudaGetLastError());
-
-  ccd::Timer timer;
-  cudaProfilerStart();
-  timer.start();
-#ifdef NO_CHECK_MS
-  if (is_edge) {
-    run_parallel_ee_ccd_all<<<nbr / parallel_nbr + 1, parallel_nbr>>>(
-        d_data_list, d_config, d_res, nbr, d_tois);
-  } else {
-    run_parallel_vf_ccd_all<<<nbr / parallel_nbr + 1, parallel_nbr>>>(
-        d_data_list, d_config, d_res, nbr, d_tois);
-  }
-#else
-  if (is_edge) {
-    run_parallel_ms_ee_ccd_all<<<nbr / parallel_nbr + 1, parallel_nbr>>>(
-        d_data_list, d_config, d_res, nbr, d_tois);
-  } else {
-    run_parallel_ms_vf_ccd_all<<<nbr / parallel_nbr + 1, parallel_nbr>>>(
-        d_data_list, d_config, d_res, nbr, d_tois);
-  }
-#endif
-
-  cudaDeviceSynchronize();
-  double tt = timer.getElapsedTimeInMicroSec();
-  run_time = tt;
-  cudaProfilerStop();
-
-  cudaMemcpy(res, d_res, result_size, cudaMemcpyDeviceToHost);
-  cudaMemcpy(tois, d_tois, time_size, cudaMemcpyDeviceToHost);
-  // cudaMemcpy(dbg, d_dbg, dbg_size, cudaMemcpyDeviceToHost);
-
-  cudaFree(d_data_list);
-  cudaFree(d_res);
-  cudaFree(d_tois);
-  cudaFree(d_config);
-  // cudaFree(d_dbg);
-
-  for (int i = 0; i < nbr; i++) {
-    result_list[i] = res[i];
-  }
-
-  time_impact.resize(nbr);
-
-  for (int i = 0; i < nbr; i++) {
-    time_impact[i] = tois[i];
-  }
-  // std::cout << "dbg info\n"
-  //           << dbg[0] << "," << dbg[1] << "," << dbg[2] << "," << dbg[3] <<
-  //           "," << dbg[4] << "," << dbg[5] << "," << dbg[6] << "," << dbg[7]
-  //           << std::endl;
-  delete[] res;
-  delete[] data_list;
-  delete[] tois;
+  // delete[] units;
   delete[] config;
   // delete[] dbg;
   cudaError_t ct = cudaGetLastError();
@@ -581,7 +334,7 @@ void all_ccd_run(const std::vector<std::array<std::array<Scalar, 3>, 8>> &V,
 void run_ccd(vector<Aabb> boxes, const Eigen::MatrixXd &vertices_t0,
              const Eigen::MatrixXd &vertices_t1, Record &r, int N, int &nbox,
              int &parallel, int &devcount, vector<pair<int, int>> &overlaps,
-             vector<int> &result_list) {
+             vector<int> &result_list, ccd::Scalar &toi) {
   int2 *d_overlaps;
   int *d_count;
   int threads = 0;
@@ -647,50 +400,21 @@ void run_ccd(vector<Aabb> boxes, const Eigen::MatrixXd &vertices_t0,
   int max_query_cp_size = EACH_LAUNCH_SIZE;
   int start_id = 0;
 
-  // vector<float> tois;
-  // vector<bool> result_list;
   result_list.resize(size);
-  //   tois.resize(size);
-
-  //   float3 *d_tmp_queries;
-  //   while (1) {
-  //     vector<int> tmp_results;
-  //     vector<array<array<Scalar, 3>, 8>> tmp_queries;
-  //     // vector<Scalar> tmp_tois;
-
-  //     int remain = size - start_id;
-  //     printf("remain %i\n", remain);
   double tmp_tall;
-
-  //     if (remain <= 0)
-  //       break;
-
-  //     int tmp_nbr = min(remain, max_query_cp_size);
-  //     tmp_results.resize(tmp_nbr);
-  //     tmp_queries.resize(tmp_nbr);
-  //     // tmp_tois.resize(tmp_nbr);
-
-  //     cudaMalloc((void **)&d_tmp_queries, sizeof(float3) * 8 * tmp_nbr);
-  //   cudaMemcpy(d_tmp_queries, d_queries + start_id, sizeof(float3) * 8 *
-  //   tmp_nbr,
-  //              cudaMemcpyDeviceToDevice);
   bool is_edge_edge = true;
 
   printf("run_memory_pool_ccd using %i threads\n", parallel);
   r.Start("run_memory_pool_ccd (narrowphase)");
   run_memory_pool_ccd(d_queries, size, is_edge_edge, result_list, parallel,
-                      tmp_tall);
+                      tmp_tall, toi);
 
   r.Stop();
 
   tavg += tmp_tall;
-  //   for (int i = 0; i < tmp_nbr; i++) {
-  //     result_list[start_id + i] = tmp_results[i];
-  //     //   tois[start_id + i] = tmp_tois[i];
-  //   }
-
-  //   start_id += tmp_nbr;
-  // }
+  cout << "tot time " << tavg << endl;
   tavg /= size;
   cout << "avg time " << tavg << endl;
+
+  cout << "toi " << toi << endl;
 }

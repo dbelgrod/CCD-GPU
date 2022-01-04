@@ -7,10 +7,11 @@
 
 #include <ccdgpu/helper.cuh>
 #include <ccdgpu/record.hpp>
+#include <gputi/CType.hpp>
 #include <gputi/timer.hpp>
 
-using namespace ccdgpu;
-using namespace ccd;
+// using namespace ccdgpu;
+// using namespace ccd;
 
 int main(int argc, char **argv) {
   vector<char *> compare;
@@ -67,23 +68,16 @@ int main(int argc, char **argv) {
       break;
     }
   }
-  // run_sweep_pieces(boxes.data(), N, nbox, overlaps, d_overlaps, d_count,
-  // parallel, devcount);
   vector<pair<int, int>> overlaps;
-  //   vector<float> tois;
   vector<int> result_list;
+  ccd::Scalar toi;
 
-  //   r.Start("run_ccd");
   run_ccd(boxes, vertices_t0, vertices_t1, r, N, nbox, parallel, devcount,
-          overlaps, result_list);
-  //   r.Stop();
+          overlaps, result_list, toi);
   r.Print();
 
   for (auto i : compare) {
     compare_mathematica(overlaps, result_list, i);
   }
   cout << endl;
-
-  // Mesh --> Boxes --> Broadphase --> (Boxes[2] ->float/double[8]) -->
-  // Narrowphase Go back to old code and make overlaps as pairs
 }

@@ -1,6 +1,7 @@
 #pragma once
 #include <ccdgpu/record.hpp>
 #include <gpubf/aabb.cuh>
+#include <gputi/CType.hpp>
 
 // using namespace ccdgpu;
 
@@ -19,8 +20,6 @@ inline void gpuAssert(cudaError_t code, const char *file, int line,
   }
 }
 
-typedef float Scalar;
-
 __global__ void addData(int2 *overlaps, ccdgpu::Aabb *boxes, double *V0,
                         double *V1, int Vrows, int N, float3 *queries);
 
@@ -30,33 +29,7 @@ void addData(const ccdgpu::Aabb &a, const ccdgpu::Aabb &b,
 
 bool is_file_exist(const char *fileName);
 
-// __global__ void run_parallel_vf_ccd_all(CCDdata *data,CCDConfig *config_in,
-// bool *res, int size, Scalar *tois
-// );
-
-// __global__ void run_parallel_ee_ccd_all(CCDdata *data,CCDConfig *config_in,
-// bool *res, int size, Scalar *tois
-// );
-
-// __global__ void run_parallel_ms_vf_ccd_all(CCDdata *data,CCDConfig
-// *config_in, bool *res, int size, Scalar *tois
-// );
-
-// __global__ void run_parallel_ms_ee_ccd_all(CCDdata *data,CCDConfig
-// *config_in, bool *res, int size, Scalar *tois
-// );
-
-// __global__ void array_to_ccd(float3 * a, int tmp_nbr, CCDdata * data );
-
-void all_ccd_run(float3 *V, int tmp_nbr, bool is_edge,
-                 std::vector<int> &result_list, double &run_time,
-                 std::vector<Scalar> &time_impact, int parallel_nbr);
-
-void all_ccd_run(const std::vector<std::array<std::array<Scalar, 3>, 8>> &V,
-                 bool is_edge, std::vector<bool> &result_list, double &run_time,
-                 std::vector<Scalar> &time_impact, int parallel_nbr);
-
 void run_ccd(vector<ccdgpu::Aabb> boxes, const Eigen::MatrixXd &vertices_t0,
              const Eigen::MatrixXd &vertices_t1, Record &r, int N, int &nbox,
              int &parallel, int &devcount, vector<pair<int, int>> &overlaps,
-             vector<int> &result_list);
+             vector<int> &result_list, ccd::Scalar &toi);
