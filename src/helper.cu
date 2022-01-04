@@ -304,7 +304,7 @@ void run_memory_pool_ccd(float3 *V, int tmp_nbr, bool is_edge,
     printf("Queue size: %i\n", nbr_per_loop);
   }
   double tt = timer.getElapsedTimeInMicroSec();
-  run_time = tt;
+  run_time = tt / 1000.0f;
   cudaProfilerStop();
   gpuErrchk(cudaGetLastError());
 
