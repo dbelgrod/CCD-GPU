@@ -13,7 +13,7 @@
 // #include <gputi/timer.cuh>
 #include <gputi/book.h>
 #include <gputi/io.h>
-#include <gputi/root_finder.h>
+#include <gputi/root_finder.cuh>
 #include <gputi/timer.hpp>
 
 #include <ccdgpu/record.hpp>
