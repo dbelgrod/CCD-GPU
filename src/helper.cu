@@ -227,7 +227,7 @@ __global__ void array_to_ccd(float3 *a, int tmp_nbr, CCDdata *data) {
 
 void run_memory_pool_ccd(float3 *V, int tmp_nbr, bool is_edge,
                          std::vector<int> &result_list, int parallel_nbr,
-                         double &run_time, ccd::Scalar toi) {
+                         double &run_time, ccd::Scalar &toi) {
   unsigned nbr = tmp_nbr;
   // result_list.resize(nbr);
   // host
@@ -259,7 +259,7 @@ void run_memory_pool_ccd(float3 *V, int tmp_nbr, bool is_edge,
   CCDConfig *d_config;
 
   size_t data_size = sizeof(CCDdata) * nbr;
-  size_t result_size = sizeof(int) * nbr;
+  // size_t result_size = sizeof(int) * nbr;
   size_t unit_size = sizeof(MP_unit) * UNIT_SIZE;
   // int dbg_size=sizeof(Scalar)*8;
 
@@ -300,8 +300,16 @@ void run_memory_pool_ccd(float3 *V, int tmp_nbr, bool is_edge,
     cudaDeviceSynchronize();
     cudaMemcpy(&nbr_per_loop, &d_config[0].mp_remaining, sizeof(int),
                cudaMemcpyDeviceToHost);
+    // cudaMemcpy(&start, &d_config[0].mp_start, sizeof(int),
+    //            cudaMemcpyDeviceToHost);
+    // cudaMemcpy(&end, &d_config[0].mp_end, sizeof(int),
+    // cudaMemcpyDeviceToHost); cudaMemcpy(&toi, &d_config[0].toi,
+    // sizeof(ccd::Scalar),
+    //            cudaMemcpyDeviceToHost);
+    // std::cout << "toi " << toi << std::endl;
+    // printf("Start %i, End %i, Queue size: %i\n", start, end, nbr_per_loop);
     gpuErrchk(cudaGetLastError());
-    printf("Queue size: %i\n", nbr_per_loop);
+    // printf("Queue size: %i\n", nbr_per_loop);
   }
   double tt = timer.getElapsedTimeInMicroSec();
   run_time = tt / 1000.0f;
@@ -400,7 +408,7 @@ void run_ccd(vector<Aabb> boxes, const Eigen::MatrixXd &vertices_t0,
   int max_query_cp_size = EACH_LAUNCH_SIZE;
   int start_id = 0;
 
-  result_list.resize(size);
+  // result_list.resize(size);
   double tmp_tall;
   bool is_edge_edge = true;
 
