@@ -1,7 +1,7 @@
 #pragma once
 #include <ccdgpu/record.hpp>
 #include <gpubf/aabb.cuh>
-#include <gputi/CType.hpp>
+#include <gputi/CType.cuh>
 
 // using namespace ccdgpu;
 
@@ -20,12 +20,13 @@ inline void gpuAssert(cudaError_t code, const char *file, int line,
   }
 }
 
-__global__ void addData(int2 *overlaps, ccdgpu::Aabb *boxes, double *V0,
-                        double *V1, int Vrows, int N, float3 *queries);
+__global__ void addData(int2 *overlaps, ccdgpu::Aabb *boxes, ccd::Scalar *V0,
+                        ccd::Scalar *V1, int Vrows, int N,
+                        ccd::Scalar3 *queries);
 
 void addData(const ccdgpu::Aabb &a, const ccdgpu::Aabb &b,
              const Eigen::MatrixXd &V0, const Eigen::MatrixXd &V1,
-             vector<array<array<float, 3>, 8>> &queries);
+             vector<array<array<ccd::Scalar3, 3>, 8>> &queries);
 
 bool is_file_exist(const char *fileName);
 

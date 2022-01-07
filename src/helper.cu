@@ -13,6 +13,7 @@
 // #include <gputi/timer.cuh>
 #include <gputi/book.h>
 #include <gputi/io.h>
+// #include <gputi/read_rational_csv.cuh>
 #include <gputi/root_finder.cuh>
 #include <gputi/timer.hpp>
 
@@ -23,8 +24,9 @@ using namespace std;
 using namespace ccd;
 using namespace ccdgpu;
 
-__global__ void addData(int2 *overlaps, Aabb *boxes, double *V0, double *V1,
-                        int Vrows, int N, float3 *queries) {
+__global__ void addData(int2 *overlaps, Aabb *boxes, ccd::Scalar *V0,
+                        ccd::Scalar *V1, int Vrows, int N,
+                        ccd::Scalar3 *queries) {
   int tid = threadIdx.x + blockIdx.x * blockDim.x;
   if (tid >= N)
     return;
@@ -34,113 +36,140 @@ __global__ void addData(int2 *overlaps, Aabb *boxes, double *V0, double *V1,
   int3 avids = boxes[minner].vertexIds;
   int3 bvids = boxes[maxxer].vertexIds;
 
-  // if (is_face(avids) && is_vertex(bvids))
-  // {
-  //     int3 tmp = avids;
-  //     avids = bvids;
-  //     bvids = tmp;
-  // }
-
   if (is_vertex(avids) && is_face(bvids)) {
     // auto vertex_start = V0.cast<float>().row(avids.x);
-    float3 vertex_start = make_float3(V0[avids.x + 0], V0[avids.x + Vrows],
-                                      V0[avids.x + 2 * Vrows]);
-    // // Triangle at t = 0
-    auto face_vertex0_start = make_float3(V0[bvids.x + 0], V0[bvids.x + Vrows],
-                                          V0[bvids.x + 2 * Vrows]);
-    auto face_vertex1_start = make_float3(V0[bvids.y + 0], V0[bvids.y + Vrows],
-                                          V0[bvids.y + 2 * Vrows]);
-    auto face_vertex2_start = make_float3(V0[bvids.z + 0], V0[bvids.z + Vrows],
-                                          V0[bvids.z + 2 * Vrows]);
-    // // Point at t=1
-    auto vertex_end = make_float3(V1[avids.x + 0], V1[avids.x + Vrows],
-                                  V1[avids.x + 2 * Vrows]);
-    // // Triangle at t = 1
-    auto face_vertex0_end = make_float3(V1[bvids.x + 0], V1[bvids.x + Vrows],
-                                        V1[bvids.x + 2 * Vrows]);
-    auto face_vertex1_end = make_float3(V1[bvids.y + 0], V1[bvids.y + Vrows],
-                                        V1[bvids.y + 2 * Vrows]);
-    auto face_vertex2_end = make_float3(V1[bvids.z + 0], V1[bvids.z + Vrows],
-                                        V1[bvids.z + 2 * Vrows]);
+    // auto vertex_start = ccd::make_Scalar3(V0[avids.x + 0], V0[avids.x +
+    // Vrows],
+    //                                       V0[avids.x + 2 * Vrows]);
+    // // // Triangle at t = 0
+    // auto face_vertex0_start = ccd::make_Scalar3(
+    //     V0[bvids.x + 0], V0[bvids.x + Vrows], V0[bvids.x + 2 * Vrows]);
+    // auto face_vertex1_start = ccd::make_Scalar3(
+    //     V0[bvids.y + 0], V0[bvids.y + Vrows], V0[bvids.y + 2 * Vrows]);
+    // auto face_vertex2_start = ccd::make_Scalar3(
+    //     V0[bvids.z + 0], V0[bvids.z + Vrows], V0[bvids.z + 2 * Vrows]);
+    // // // Point at t=1
+    // auto vertex_end = ccd::make_Scalar3(V1[avids.x + 0], V1[avids.x + Vrows],
+    //                                     V1[avids.x + 2 * Vrows]);
+    // // // Triangle at t = 1
+    // auto face_vertex0_end = ccd::make_Scalar3(
+    //     V1[bvids.x + 0], V1[bvids.x + Vrows], V1[bvids.x + 2 * Vrows]);
+    // auto face_vertex1_end = ccd::make_Scalar3(
+    //     V1[bvids.y + 0], V1[bvids.y + Vrows], V1[bvids.y + 2 * Vrows]);
+    // auto face_vertex2_end = ccd::make_Scalar3(
+    //     V1[bvids.z + 0], V1[bvids.z + Vrows], V1[bvids.z + 2 * Vrows]);
 
-    // array<array<float, 3>, 8> tmp;
-    // float3 tmp[8];
-    queries[8 * tid + 0] = vertex_start;
-    queries[8 * tid + 1] = face_vertex0_start;
-    queries[8 * tid + 2] = face_vertex1_start;
-    queries[8 * tid + 3] = face_vertex2_start;
-    queries[8 * tid + 4] = vertex_end;
-    queries[8 * tid + 5] = face_vertex0_end;
-    queries[8 * tid + 6] = face_vertex1_end;
-    queries[8 * tid + 7] = face_vertex2_end;
+    queries[8 * tid + 0] = ccd::make_Scalar3(
+        V0[avids.x + 0], V0[avids.x + Vrows], V0[avids.x + 2 * Vrows]);
 
+    queries[8 * tid + 1] = ccd::make_Scalar3(
+        V0[bvids.x + 0], V0[bvids.x + Vrows], V0[bvids.x + 2 * Vrows]);
+    queries[8 * tid + 2] = ccd::make_Scalar3(
+        V0[bvids.y + 0], V0[bvids.y + Vrows], V0[bvids.y + 2 * Vrows]);
+
+    queries[8 * tid + 3] = ccd::make_Scalar3(
+        V0[bvids.z + 0], V0[bvids.z + Vrows], V0[bvids.z + 2 * Vrows]);
+    queries[8 * tid + 4] = ccd::make_Scalar3(
+        V1[avids.x + 0], V1[avids.x + Vrows], V1[avids.x + 2 * Vrows]);
+    ;
+    queries[8 * tid + 5] = ccd::make_Scalar3(
+        V1[bvids.x + 0], V1[bvids.x + Vrows], V1[bvids.x + 2 * Vrows]);
+    ;
+    queries[8 * tid + 6] = ccd::make_Scalar3(
+        V1[bvids.y + 0], V1[bvids.y + Vrows], V1[bvids.y + 2 * Vrows]);
+    ;
+    queries[8 * tid + 7] = ccd::make_Scalar3(
+        V1[bvids.z + 0], V1[bvids.z + Vrows], V1[bvids.z + 2 * Vrows]);
+    ;
+
+    // } else
+    //   return;
   } else if (is_edge(avids) && is_edge(bvids)) {
     //     // Edge 1 at t=0
-    auto edge0_vertex0_start = make_float3(V0[avids.x + 0], V0[avids.x + Vrows],
-                                           V0[avids.x + 2 * Vrows]);
-    auto edge0_vertex1_start = make_float3(V0[avids.y + 0], V0[avids.y + Vrows],
-                                           V0[avids.y + 2 * Vrows]);
+    // auto edge0_vertex0_start = ccd::make_Scalar3(
+    //     V0[avids.x + 0], V0[avids.x + Vrows], V0[avids.x + 2 * Vrows]);
+    // auto edge0_vertex1_start = ccd::make_Scalar3(
+    //     V0[avids.y + 0], V0[avids.y + Vrows], V0[avids.y + 2 * Vrows]);
     // // Edge 2 at t=0
-    auto edge1_vertex0_start = make_float3(V0[bvids.x + 0], V0[bvids.x + Vrows],
-                                           V0[bvids.x + 2 * Vrows]);
-    auto edge1_vertex1_start = make_float3(V0[bvids.y + 0], V0[bvids.y + Vrows],
-                                           V0[bvids.y + 2 * Vrows]);
+    // auto edge1_vertex0_start = ccd::make_Scalar3(
+    //     V0[bvids.x + 0], V0[bvids.x + Vrows], V0[bvids.x + 2 * Vrows]);
+    // auto edge1_vertex1_start = ccd::make_Scalar3(
+    //     V0[bvids.y + 0], V0[bvids.y + Vrows], V0[bvids.y + 2 * Vrows]);
     // // Edge 1 at t=1
-    auto edge0_vertex0_end = make_float3(V1[avids.x + 0], V1[avids.x + Vrows],
-                                         V1[avids.x + 2 * Vrows]);
-    auto edge0_vertex1_end = make_float3(V1[avids.y + 0], V1[avids.y + Vrows],
-                                         V1[avids.y + 2 * Vrows]);
+    // auto edge0_vertex0_end = ccd::make_Scalar3(
+    //     V1[avids.x + 0], V1[avids.x + Vrows], V1[avids.x + 2 * Vrows]);
+    // auto edge0_vertex1_end = ccd::make_Scalar3(
+    //     V1[avids.y + 0], V1[avids.y + Vrows], V1[avids.y + 2 * Vrows]);
     // // Edge 2 at t=1
-    auto edge1_vertex0_end = make_float3(V1[bvids.x + 0], V1[bvids.x + Vrows],
-                                         V1[bvids.x + 2 * Vrows]);
-    auto edge1_vertex1_end = make_float3(V1[bvids.y + 0], V1[bvids.y + Vrows],
-                                         V1[bvids.y + 2 * Vrows]);
+    // auto edge1_vertex0_end = ccd::make_Scalar3(
+    //     V1[bvids.x + 0], V1[bvids.x + Vrows], V1[bvids.x + 2 * Vrows]);
+    // auto edge1_vertex1_end = ccd::make_Scalar3(
+    //     V1[bvids.y + 0], V1[bvids.y + Vrows], V1[bvids.y + 2 * Vrows]);
 
-    // queries.emplace_back(Vec3Conv(edge0_vertex0_start));
-    // float3 tmp[8];
-    queries[8 * tid + 0] = edge0_vertex0_start;
-    queries[8 * tid + 1] = edge0_vertex1_start;
-    queries[8 * tid + 2] = edge1_vertex0_start;
-    queries[8 * tid + 3] = edge1_vertex1_start;
-    queries[8 * tid + 4] = edge0_vertex0_end;
-    queries[8 * tid + 5] = edge0_vertex1_end;
-    queries[8 * tid + 6] = edge1_vertex0_end;
-    queries[8 * tid + 7] = edge1_vertex1_end;
-    // queries[tid] = tmp;
+    queries[8 * tid + 0] = ccd::make_Scalar3(
+        V0[avids.x + 0], V0[avids.x + Vrows], V0[avids.x + 2 * Vrows]);
+    ;
 
+    queries[8 * tid + 1] = ccd::make_Scalar3(
+        V0[avids.y + 0], V0[avids.y + Vrows], V0[avids.y + 2 * Vrows]);
+    ;
+
+    queries[8 * tid + 2] = ccd::make_Scalar3(
+        V0[bvids.x + 0], V0[bvids.x + Vrows], V0[bvids.x + 2 * Vrows]);
+    ;
+
+    queries[8 * tid + 3] = ccd::make_Scalar3(
+        V0[bvids.y + 0], V0[bvids.y + Vrows], V0[bvids.y + 2 * Vrows]);
+    ;
+
+    queries[8 * tid + 4] = ccd::make_Scalar3(
+        V1[avids.x + 0], V1[avids.x + Vrows], V1[avids.x + 2 * Vrows]);
+    ;
+
+    queries[8 * tid + 5] = ccd::make_Scalar3(
+        V1[avids.y + 0], V1[avids.y + Vrows], V1[avids.y + 2 * Vrows]);
+    ;
+
+    queries[8 * tid + 6] = ccd::make_Scalar3(
+        V1[bvids.x + 0], V1[bvids.x + Vrows], V1[bvids.x + 2 * Vrows]);
+    ;
+
+    queries[8 * tid + 7] = ccd::make_Scalar3(
+        V1[bvids.y + 0], V1[bvids.y + Vrows], V1[bvids.y + 2 * Vrows]);
+    ;
   } else
     assert(0);
 }
 
 void addData(const Aabb &a, const Aabb &b, const Eigen::MatrixXd &V0,
              const Eigen::MatrixXd &V1,
-             vector<array<array<float, 3>, 8>> &queries) {
+             vector<array<array<ccd::Scalar, 3>, 8>> &queries) {
   // auto is_vertex = [&](Aabb x){return x.vertexIds.y < 0 ;};
   // auto is_edge = [&](Aabb x){return !is_vertex(x) && x.vertexIds.z < 0 ;};
   // auto is_face = [&](Aabb x){return !is_vertex(x) && !is_edge(x);};
 
   // auto is_face = [&](Aabb x){return x.vertexIds.z >= 0;};
   // auto is_edge = [&](Aabb x){return x.vertexIds.z < 0 && x.vertexIds.y >= 0
-  // ;}; auto is_vertex = [&](Aabb x){return x.vertexIds.z < 0  && x.vertexIds.y
-  // < 0;};
+  // ;}; auto is_vertex = [&](Aabb x){return x.vertexIds.z < 0  &&
+  // x.vertexIds.y < 0;};
 
   if (is_vertex(a) && is_face(b)) {
     auto avids = a.vertexIds;
     auto bvids = b.vertexIds;
     // Point at t=0s
-    auto vertex_start = V0.cast<float>().row(avids.x);
+    auto vertex_start = V0.cast<ccd::Scalar>().row(avids.x);
     // // Triangle at t = 0
-    auto face_vertex0_start = V0.cast<float>().row(bvids.x);
-    auto face_vertex1_start = V0.cast<float>().row(bvids.y);
-    auto face_vertex2_start = V0.cast<float>().row(bvids.z);
+    auto face_vertex0_start = V0.cast<ccd::Scalar>().row(bvids.x);
+    auto face_vertex1_start = V0.cast<ccd::Scalar>().row(bvids.y);
+    auto face_vertex2_start = V0.cast<ccd::Scalar>().row(bvids.z);
     // // Point at t=1
-    auto vertex_end = V1.cast<float>().row(avids.x);
+    auto vertex_end = V1.cast<ccd::Scalar>().row(avids.x);
     // // Triangle at t = 1
-    auto face_vertex0_end = V1.cast<float>().row(bvids.x);
-    auto face_vertex1_end = V1.cast<float>().row(bvids.y);
-    auto face_vertex2_end = V1.cast<float>().row(bvids.z);
+    auto face_vertex0_end = V1.cast<ccd::Scalar>().row(bvids.x);
+    auto face_vertex1_end = V1.cast<ccd::Scalar>().row(bvids.y);
+    auto face_vertex2_end = V1.cast<ccd::Scalar>().row(bvids.z);
 
-    array<array<float, 3>, 8> tmp;
+    array<array<ccd::Scalar, 3>, 8> tmp;
     tmp[0] = Vec3Conv(vertex_start);
     tmp[1] = Vec3Conv(face_vertex0_start);
     tmp[2] = Vec3Conv(face_vertex1_start);
@@ -156,20 +185,20 @@ void addData(const Aabb &a, const Aabb &b, const Eigen::MatrixXd &V0,
     auto avids = a.vertexIds;
     auto bvids = b.vertexIds;
     //     // Edge 1 at t=0
-    auto edge0_vertex0_start = V0.cast<float>().row(avids.x);
-    auto edge0_vertex1_start = V0.cast<float>().row(avids.y);
+    auto edge0_vertex0_start = V0.cast<ccd::Scalar>().row(avids.x);
+    auto edge0_vertex1_start = V0.cast<ccd::Scalar>().row(avids.y);
     // // Edge 2 at t=0
-    auto edge1_vertex0_start = V0.cast<float>().row(bvids.x);
-    auto edge1_vertex1_start = V0.cast<float>().row(bvids.y);
+    auto edge1_vertex0_start = V0.cast<ccd::Scalar>().row(bvids.x);
+    auto edge1_vertex1_start = V0.cast<ccd::Scalar>().row(bvids.y);
     // // Edge 1 at t=1
-    auto edge0_vertex0_end = V1.cast<float>().row(avids.x);
-    auto edge0_vertex1_end = V1.cast<float>().row(avids.y);
+    auto edge0_vertex0_end = V1.cast<ccd::Scalar>().row(avids.x);
+    auto edge0_vertex1_end = V1.cast<ccd::Scalar>().row(avids.y);
     // // Edge 2 at t=1
-    auto edge1_vertex0_end = V1.cast<float>().row(bvids.x);
-    auto edge1_vertex1_end = V1.cast<float>().row(bvids.y);
+    auto edge1_vertex0_end = V1.cast<ccd::Scalar>().row(bvids.x);
+    auto edge1_vertex1_end = V1.cast<ccd::Scalar>().row(bvids.y);
 
     // queries.emplace_back(Vec3Conv(edge0_vertex0_start));
-    array<array<float, 3>, 8> tmp;
+    array<array<ccd::Scalar, 3>, 8> tmp;
     tmp[0] = Vec3Conv(edge0_vertex0_start);
     tmp[1] = Vec3Conv(edge0_vertex1_start);
     tmp[2] = Vec3Conv(edge1_vertex0_start);
@@ -188,7 +217,7 @@ bool is_file_exist(const char *fileName) {
   return infile.good();
 }
 
-__global__ void array_to_ccd(float3 *a, int tmp_nbr, CCDdata *data) {
+__global__ void array_to_ccd(ccd::Scalar3 *a, int tmp_nbr, CCDdata *data) {
   int tid = threadIdx.x + blockIdx.x * blockDim.x;
   if (tid >= tmp_nbr)
     return;
@@ -225,11 +254,11 @@ __global__ void array_to_ccd(float3 *a, int tmp_nbr, CCDdata *data) {
   data[tid].v3e[2] = a[8 * tid + 7].z;
 }
 
-void run_memory_pool_ccd(float3 *V, int tmp_nbr, bool is_edge,
+void run_memory_pool_ccd(ccd::Scalar3 *V, int tmp_nbr, bool is_edge,
                          std::vector<int> &result_list, int parallel_nbr,
                          double &run_time, ccd::Scalar &toi) {
   unsigned nbr = tmp_nbr;
-  // result_list.resize(nbr);
+  result_list.resize(nbr);
   // host
   // CCDdata *data_list = new CCDdata[nbr];
   CCDdata *data_list;
@@ -239,7 +268,7 @@ void run_memory_pool_ccd(float3 *V, int tmp_nbr, bool is_edge,
   gpuErrchk(cudaGetLastError());
   printf("Finished array_to_ccd\n");
 
-  // int *res = new int[nbr];
+  int *res = new int[nbr];
   // MP_unit *units = new MP_unit[UNIT_SIZE];
   CCDConfig *config = new CCDConfig[1];
   config[0].err_in[0] =
@@ -247,7 +276,7 @@ void run_memory_pool_ccd(float3 *V, int tmp_nbr, bool is_edge,
   config[0].co_domain_tolerance = 1e-6; // tolerance of the co-domain
   // config[0].max_t = 1;                  // the upper bound of the time
   // interval
-  config[0].max_itr = 1e6; // the maximal nbr of iterations
+  config[0].toi = 1; // the maximal nbr of iterations
   config[0].mp_end = nbr;
   config[0].mp_start = 0;
   config[0].mp_remaining = nbr;
@@ -261,7 +290,7 @@ void run_memory_pool_ccd(float3 *V, int tmp_nbr, bool is_edge,
   size_t data_size = sizeof(CCDdata) * nbr;
   // size_t result_size = sizeof(int) * nbr;
   size_t unit_size = sizeof(MP_unit) * UNIT_SIZE;
-  // int dbg_size=sizeof(Scalar)*8;
+  // int dbg_size=sizeof(ccd::Scalar)*8;
 
   cudaMalloc(&d_data_list, data_size);
   // cudaMalloc(&d_res, result_size);
@@ -286,6 +315,9 @@ void run_memory_pool_ccd(float3 *V, int tmp_nbr, bool is_edge,
 
   printf("UNIT_SIZE: %llu\n", UNIT_SIZE);
   printf("EACH_LAUNCH_SIZE: %llu\n", EACH_LAUNCH_SIZE);
+  // cudaMemcpy(&toi, &d_config[0].toi, sizeof(ccd::Scalar),
+  //            cudaMemcpyDeviceToHost);
+  // printf("toi init %.6f\n", toi);
 
   int nbr_per_loop = nbr;
   int start;
@@ -307,6 +339,7 @@ void run_memory_pool_ccd(float3 *V, int tmp_nbr, bool is_edge,
     // sizeof(ccd::Scalar),
     //            cudaMemcpyDeviceToHost);
     // std::cout << "toi " << toi << std::endl;
+    // printf("toi %.4f\n", toi);
     // printf("Start %i, End %i, Queue size: %i\n", start, end, nbr_per_loop);
     gpuErrchk(cudaGetLastError());
     // printf("Queue size: %i\n", nbr_per_loop);
@@ -328,6 +361,10 @@ void run_memory_pool_ccd(float3 *V, int tmp_nbr, bool is_edge,
   cudaFree(d_config);
   // cudaFree(d_dbg);
 
+  // for (size_t i = 0; i < nbr; i++) {
+  //   result_list[i] = res[i];
+  // }
+
   // delete[] res;
   // delete[] data_list;
   // delete[] units;
@@ -346,7 +383,7 @@ void run_ccd(vector<Aabb> boxes, const Eigen::MatrixXd &vertices_t0,
   int2 *d_overlaps;
   int *d_count;
   int threads = 0;
-  r.Start("run_sweep_sharedqueue (broadphase)");
+  r.Start("run_sweep_sharedqueue (broadphase)", /*gpu=*/true);
   run_sweep_sharedqueue(boxes.data(), N, nbox, overlaps, d_overlaps, d_count,
                         threads, devcount);
   gpuErrchk(cudaDeviceSynchronize());
@@ -354,7 +391,7 @@ void run_ccd(vector<Aabb> boxes, const Eigen::MatrixXd &vertices_t0,
   gpuErrchk(cudaGetLastError());
   printf("Threads now %i\n", threads);
 
-  r.Start("broadphase -> narrowphase");
+  r.Start("broadphase -> narrowphase", /*gpu=*/true);
   // copy overlap count
   int count;
   gpuErrchk(cudaMemcpy(&count, d_count, sizeof(int), cudaMemcpyDeviceToHost));
@@ -367,19 +404,21 @@ void run_ccd(vector<Aabb> boxes, const Eigen::MatrixXd &vertices_t0,
   cudaMemcpy(d_boxes, boxes.data(), sizeof(Aabb) * N, cudaMemcpyHostToDevice);
   gpuErrchk(cudaGetLastError());
 
-  float3 *d_queries;
-  cudaMalloc((void **)&d_queries, sizeof(float3) * 8 * count);
+  ccd::Scalar3 *d_queries;
+  size_t queries_size = sizeof(ccd::Scalar3) * 8 * count;
+  cout << "queries size: " << queries_size << endl;
+  cudaMalloc((void **)&d_queries, queries_size);
   gpuErrchk(cudaGetLastError());
 
   printf("Copying vertices\n");
-  double *d_vertices_t0;
-  double *d_vertices_t1;
-  cudaMalloc((void **)&d_vertices_t0, sizeof(double) * vertices_t0.size());
-  cudaMalloc((void **)&d_vertices_t1, sizeof(double) * vertices_t1.size());
+  ccd::Scalar *d_vertices_t0;
+  ccd::Scalar *d_vertices_t1;
+  cudaMalloc((void **)&d_vertices_t0, sizeof(ccd::Scalar) * vertices_t0.size());
+  cudaMalloc((void **)&d_vertices_t1, sizeof(ccd::Scalar) * vertices_t1.size());
   cudaMemcpy(d_vertices_t0, vertices_t0.data(),
-             sizeof(double) * vertices_t0.size(), cudaMemcpyHostToDevice);
+             sizeof(ccd::Scalar) * vertices_t0.size(), cudaMemcpyHostToDevice);
   cudaMemcpy(d_vertices_t1, vertices_t1.data(),
-             sizeof(double) * vertices_t1.size(), cudaMemcpyHostToDevice);
+             sizeof(ccd::Scalar) * vertices_t1.size(), cudaMemcpyHostToDevice);
 
   int Vrows = vertices_t0.rows();
   assert(Vrows == vertices_t1.rows());
@@ -413,7 +452,7 @@ void run_ccd(vector<Aabb> boxes, const Eigen::MatrixXd &vertices_t0,
   bool is_edge_edge = true;
 
   printf("run_memory_pool_ccd using %i threads\n", parallel);
-  r.Start("run_memory_pool_ccd (narrowphase)");
+  r.Start("run_memory_pool_ccd (narrowphase)", /*gpu=*/true);
   run_memory_pool_ccd(d_queries, size, is_edge_edge, result_list, parallel,
                       tmp_tall, toi);
 

@@ -7,7 +7,7 @@
 
 #include <ccdgpu/helper.cuh>
 #include <ccdgpu/record.hpp>
-#include <gputi/CType.hpp>
+#include <gputi/CType.cuh>
 #include <gputi/timer.hpp>
 
 // using namespace ccdgpu;
@@ -26,7 +26,7 @@ int main(int argc, char **argv) {
   else // static CD
     filet1 = argv[1];
 
-  vector<Aabb> boxes;
+  vector<ccdgpu::Aabb> boxes;
   Eigen::MatrixXd vertices_t0;
   Eigen::MatrixXd vertices_t1;
   Eigen::MatrixXi faces;
@@ -75,6 +75,10 @@ int main(int argc, char **argv) {
   run_ccd(boxes, vertices_t0, vertices_t1, r, N, nbox, parallel, devcount,
           overlaps, result_list, toi);
   r.Print();
+
+  // cout << "result_list " << result_list.size() << endl;
+  // for (int i = 0; i < result_list.size(); i++)
+  //   result_list[i] = 1;
 
   for (auto i : compare) {
     compare_mathematica(overlaps, result_list, i);
