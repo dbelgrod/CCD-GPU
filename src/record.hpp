@@ -36,34 +36,60 @@ using namespace ccd;
 struct Record
 {
       ccd::Timer timer;
+      cudaEvent_t start, stop;
       char * tag;
       json j_object;
+      bool gpu_timer_on;
 
-      Record(){};
+      Record(){
+            cudaEventCreate(&start);
+            cudaEventCreate(&stop);
+            gpu_timer_on = false;
+      };
 
       Record(json & jtmp)
       {
           j_object = jtmp;
+          Record();
       };
 
-      void Start(char * s)
+      void Start(char * s, bool gpu = false)
       {
             tag = s;
-            timer.start();
+            if (!gpu)
+                  timer.start();
+            else
+            {
+                  printf("Starting gpu timer for %s\n", s);
+                  cudaEventRecord(start);
+                  gpu_timer_on = true;
+            }
+
       }
 
-      void Start(char * s, json & jtmp)
+      void Start(char * s, json & jtmp, bool gpu = false)
       {
            j_object = jtmp;
-           Start(s);
+           Start(s, gpu);
       } 
 
       void Stop()
       {
-            timer.stop();
-            double elapsed = 0;
-            elapsed += timer.getElapsedTimeInMicroSec();
-            elapsed /= 1000.f;
+            float elapsed; //was double
+            if (!gpu_timer_on)
+            {
+                  timer.stop();
+                  elapsed += timer.getElapsedTimeInMicroSec();
+                  elapsed /= 1000.f;
+            }
+            else
+            {
+                  cudaEventRecord(stop);
+                  cudaEventSynchronize(stop);
+                  cudaEventElapsedTime(&elapsed, start, stop);
+                  printf("Gpu timer stopped for %s: %.6f ms\n", tag, elapsed);
+                  gpu_timer_on = false;
+            }
             // j_object[tag]=elapsed;
             if (j_object.contains(tag))
                   j_object[tag] = (double)j_object[tag] + elapsed;
