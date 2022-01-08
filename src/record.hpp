@@ -39,12 +39,12 @@ struct Record
       cudaEvent_t start, stop;
       char * tag;
       json j_object;
-      bool gpu_timer_on;
+      bool gpu_timer_on = false;
 
       Record(){
-            cudaEventCreate(&start);
-            cudaEventCreate(&stop);
-            gpu_timer_on = false;
+            // cudaEventCreate(&start);
+            // cudaEventCreate(&stop);
+            // gpu_timer_on = false;
       };
 
       Record(json & jtmp)
@@ -60,6 +60,8 @@ struct Record
                   timer.start();
             else
             {
+                  cudaEventCreate(&start);
+                  cudaEventCreate(&stop);
                   printf("Starting gpu timer for %s\n", s);
                   cudaEventRecord(start);
                   gpu_timer_on = true;
@@ -88,6 +90,8 @@ struct Record
                   cudaEventSynchronize(stop);
                   cudaEventElapsedTime(&elapsed, start, stop);
                   printf("Gpu timer stopped for %s: %.6f ms\n", tag, elapsed);
+                  cudaEventDestroy(start);
+                  cudaEventDestroy(stop);
                   gpu_timer_on = false;
             }
             // j_object[tag]=elapsed;
