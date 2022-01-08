@@ -62,7 +62,7 @@ struct Record
             {
                   cudaEventCreate(&start);
                   cudaEventCreate(&stop);
-                  printf("Starting gpu timer for %s\n", s);
+                  // printf("Starting gpu timer for %s\n", s);
                   cudaEventRecord(start);
                   gpu_timer_on = true;
             }
@@ -83,6 +83,7 @@ struct Record
                   timer.stop();
                   elapsed += timer.getElapsedTimeInMicroSec();
                   elapsed /= 1000.f;
+                  printf("Cpu timer stopped for %s: %.6f ms\n", tag, elapsed);
             }
             else
             {
