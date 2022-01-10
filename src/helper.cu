@@ -273,6 +273,7 @@ void run_memory_pool_ccd(const ccd::Scalar3 *const V, int tmp_nbr, bool is_edge,
   config[0].mp_end = nbr;
   config[0].mp_start = 0;
   config[0].mp_remaining = nbr;
+  config[0].overflow_flag = 0;
 
   // device
   // CCDdata *d_data_list;
@@ -358,12 +359,12 @@ void run_memory_pool_ccd(const ccd::Scalar3 *const V, int tmp_nbr, bool is_edge,
              cudaMemcpyDeviceToHost);
   // cudaMemcpy(dbg, d_dbg, dbg_size, cudaMemcpyDeviceToHost);
 
-  // cudaFree(data_list);
-  cudaFree(d_data_list);
-  // cudaFree(d_res);
-  cudaFree(d_units);
-  cudaFree(d_config);
-  // cudaFree(d_dbg);
+  if (is_edge) {
+    cudaFree(d_data_list);
+    // cudaFree(d_res);
+    cudaFree(d_units);
+    cudaFree(d_config);
+  }
 
   // for (size_t i = 0; i < nbr; i++) {
   //   result_list[i] = res[i];
