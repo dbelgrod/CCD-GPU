@@ -20,8 +20,10 @@ inline void gpuAssert(cudaError_t code, const char *file, int line,
   }
 }
 
-__global__ void addData(int2 *overlaps, ccdgpu::Aabb *boxes, ccd::Scalar *V0,
-                        ccd::Scalar *V1, int Vrows, int N,
+__global__ void addData(const int2 *const overlaps,
+                        const ccdgpu::Aabb *const boxes,
+                        const ccd::Scalar *const V0,
+                        const ccd::Scalar *const V1, int Vrows, int N,
                         ccd::Scalar3 *queries);
 
 void addData(const ccdgpu::Aabb &a, const ccdgpu::Aabb &b,
