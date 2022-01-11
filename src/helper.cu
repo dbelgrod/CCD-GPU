@@ -323,6 +323,7 @@ void run_memory_pool_ccd(const ccd::Scalar3 *const V, int tmp_nbr, bool is_edge,
   int start;
   int end;
   //   int inc = 0;
+  printf("Queue size t0: %i\n", nbr_per_loop);
   while (nbr_per_loop > 0) {
     if (is_edge) {
       ee_ccd_memory_pool<<<nbr_per_loop / parallel_nbr + 1, parallel_nbr>>>(
@@ -347,7 +348,7 @@ void run_memory_pool_ccd(const ccd::Scalar3 *const V, int tmp_nbr, bool is_edge,
     // printf("toi %.4f\n", toi);
     // printf("Start %i, End %i, Queue size: %i\n", start, end, nbr_per_loop);
     gpuErrchk(cudaGetLastError());
-    // printf("Queue size: %i\n", nbr_per_loop);
+    printf("Queue size: %i\n", nbr_per_loop);
   }
   double tt = timer.getElapsedTimeInMicroSec();
   run_time += tt / 1000.0f;
@@ -357,6 +358,11 @@ void run_memory_pool_ccd(const ccd::Scalar3 *const V, int tmp_nbr, bool is_edge,
   // cudaMemcpy(res, d_res, result_size, cudaMemcpyDeviceToHost);
   cudaMemcpy(&toi, &d_config[0].toi, sizeof(ccd::Scalar),
              cudaMemcpyDeviceToHost);
+  int overflow;
+  cudaMemcpy(&overflow, &d_config[0].overflow_flag, sizeof(int),
+             cudaMemcpyDeviceToHost);
+  if (overflow)
+    printf("OVERFLOW!!!!\n");
   // cudaMemcpy(dbg, d_dbg, dbg_size, cudaMemcpyDeviceToHost);
 
   if (is_edge) {
