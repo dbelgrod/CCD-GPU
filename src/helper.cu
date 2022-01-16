@@ -255,7 +255,9 @@ void run_memory_pool_ccd(const ccd::Scalar3 *const V, int tmp_nbr, bool is_edge,
   // cout << tmp.x << " " << tmp.y << " " << tmp.z << endl;
   CCDdata *d_data_list;
   size_t data_size = sizeof(CCDdata) * nbr;
+  printf("data_size %llu\n", data_size);
   cudaMalloc((void **)&d_data_list, data_size);
+  gpuErrchk(cudaGetLastError());
   array_to_ccd<<<nbr / parallel_nbr + 1, parallel_nbr>>>(V, nbr, d_data_list);
   cudaDeviceSynchronize();
   gpuErrchk(cudaGetLastError());
@@ -350,6 +352,7 @@ void run_memory_pool_ccd(const ccd::Scalar3 *const V, int tmp_nbr, bool is_edge,
     gpuErrchk(cudaGetLastError());
     printf("Queue size: %i\n", nbr_per_loop);
   }
+  cudaDeviceSynchronize();
   double tt = timer.getElapsedTimeInMicroSec();
   run_time += tt / 1000.0f;
   // cudaProfilerStop();
@@ -393,11 +396,12 @@ void run_ccd(const vector<Aabb> boxes, const Eigen::MatrixXd &vertices_t0,
              vector<int> &result_list, ccd::Scalar &toi) {
   int2 *d_overlaps;
   int *d_count;
-  int threads = 0;
+  int threads = 32; // HARDCODING THREADS FOR NOW
   r.Start("run_sweep_sharedqueue (broadphase)", /*gpu=*/true);
   run_sweep_sharedqueue(boxes.data(), N, nbox, overlaps, d_overlaps, d_count,
                         threads, devcount);
-  gpuErrchk(cudaDeviceSynchronize());
+  threads = 1024;
+  // gpuErrchk(cudaDeviceSynchronize());
   r.Stop();
   gpuErrchk(cudaGetLastError());
   printf("Threads now %i\n", threads);
@@ -488,6 +492,7 @@ void run_ccd(const vector<Aabb> boxes, const Eigen::MatrixXd &vertices_t0,
   cudaFree(d_ee_overlaps);
   cudaFree(d_vf_count);
   cudaFree(d_ee_count);
+  gpuErrchk(cudaGetLastError());
 
   cudaDeviceSynchronize();
 
@@ -510,11 +515,13 @@ void run_ccd(const vector<Aabb> boxes, const Eigen::MatrixXd &vertices_t0,
   run_memory_pool_ccd(d_vf_queries, vf_size, /*is_edge_edge=*/false,
                       result_list, parallel, tmp_tall, toi);
   cudaDeviceSynchronize();
+  gpuErrchk(cudaGetLastError());
   printf("toi after vf %e\n", toi);
   printf("time after vf %.6f\n", tmp_tall);
 
   run_memory_pool_ccd(d_ee_queries, ee_size, /*is_edge_edge=*/true, result_list,
                       parallel, tmp_tall, toi);
+  gpuErrchk(cudaGetLastError());
   printf("toi after ee %e\n", toi);
   printf("time after ee %.6f\n", tmp_tall);
   r.Stop();
