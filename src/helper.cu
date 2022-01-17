@@ -53,10 +53,14 @@ __global__ void addData(const int2 *const overlaps,
                         const ccdgpu::Aabb *const boxes,
                         const ccd::Scalar *const V0,
                         const ccd::Scalar *const V1, int Vrows, int N,
-                        ccd::Scalar3 *queries) {
+                        CCDdata *data) {
   int tid = threadIdx.x + blockIdx.x * blockDim.x;
   if (tid >= N)
     return;
+
+#ifndef NO_CHECK_MS
+  data[tid].ms = MINIMUM_SEPARATION_BENCHMARK;
+#endif
 
   // printf("vf_count %i, ee_count %i", *vf_count, *ee_count);
 
@@ -65,64 +69,112 @@ __global__ void addData(const int2 *const overlaps,
   int3 avids = boxes[minner].vertexIds;
   int3 bvids = boxes[maxxer].vertexIds;
 
+  // data[tid].v0s[0] = a[8 * tid + 0].x;
+  // data[tid].v1s[0] = a[8 * tid + 1].x;
+  // data[tid].v2s[0] = a[8 * tid + 2].x;
+  // data[tid].v3s[0] = a[8 * tid + 3].x;
+  // data[tid].v0e[0] = a[8 * tid + 4].x;
+  // data[tid].v1e[0] = a[8 * tid + 5].x;
+  // data[tid].v2e[0] = a[8 * tid + 6].x;
+  // data[tid].v3e[0] = a[8 * tid + 7].x;
+
+  // data[tid].v0s[1] = a[8 * tid + 0].y;
+  // data[tid].v1s[1] = a[8 * tid + 1].y;
+  // data[tid].v2s[1] = a[8 * tid + 2].y;
+  // data[tid].v3s[1] = a[8 * tid + 3].y;
+  // data[tid].v0e[1] = a[8 * tid + 4].y;
+  // data[tid].v1e[1] = a[8 * tid + 5].y;
+  // data[tid].v2e[1] = a[8 * tid + 6].y;
+  // data[tid].v3e[1] = a[8 * tid + 7].y;
+
+  // data[tid].v0s[2] = a[8 * tid + 0].z;
+  // data[tid].v1s[2] = a[8 * tid + 1].z;
+  // data[tid].v2s[2] = a[8 * tid + 2].z;
+  // data[tid].v3s[2] = a[8 * tid + 3].z;
+  // data[tid].v0e[2] = a[8 * tid + 4].z;
+  // data[tid].v1e[2] = a[8 * tid + 5].z;
+  // data[tid].v2e[2] = a[8 * tid + 6].z;
+  // data[tid].v3e[2] = a[8 * tid + 7].z;
+
   if (is_vertex(avids) && is_face(bvids)) {
     // int i = atomicAdd(vf_count, 1);
-    queries[8 * tid + 0] = ccd::make_Scalar3(
-        V0[avids.x + 0], V0[avids.x + Vrows], V0[avids.x + 2 * Vrows]);
+    // queries[8 * tid + 0] = ccd::make_Scalar3(
+    //     V0[avids.x + 0], V0[avids.x + Vrows], V0[avids.x + 2 * Vrows]);
+    for (size_t i = 0; i < 3; i++) {
+      data[tid].v0s[i] = V0[avids.x + i * Vrows];
+      data[tid].v1s[i] = V0[bvids.x + i * Vrows];
+      data[tid].v2s[i] = V0[bvids.y + i * Vrows];
+      data[tid].v3s[i] = V0[bvids.z + i * Vrows];
+      data[tid].v0e[i] = V1[avids.x + i * Vrows];
+      data[tid].v1e[i] = V1[bvids.x + i * Vrows];
+      data[tid].v2e[i] = V1[bvids.y + i * Vrows];
+      data[tid].v3e[i] = V1[bvids.z + i * Vrows];
+    }
 
-    queries[8 * tid + 1] = ccd::make_Scalar3(
-        V0[bvids.x + 0], V0[bvids.x + Vrows], V0[bvids.x + 2 * Vrows]);
-    queries[8 * tid + 2] = ccd::make_Scalar3(
-        V0[bvids.y + 0], V0[bvids.y + Vrows], V0[bvids.y + 2 * Vrows]);
+    // queries[8 * tid + 1] = ccd::make_Scalar3(
+    //     V0[bvids.x + 0], V0[bvids.x + Vrows], V0[bvids.x + 2 * Vrows]);
+    // queries[8 * tid + 2] = ccd::make_Scalar3(
+    //     V0[bvids.y + 0], V0[bvids.y + Vrows], V0[bvids.y + 2 * Vrows]);
 
-    queries[8 * tid + 3] = ccd::make_Scalar3(
-        V0[bvids.z + 0], V0[bvids.z + Vrows], V0[bvids.z + 2 * Vrows]);
-    queries[8 * tid + 4] = ccd::make_Scalar3(
-        V1[avids.x + 0], V1[avids.x + Vrows], V1[avids.x + 2 * Vrows]);
-    ;
-    queries[8 * tid + 5] = ccd::make_Scalar3(
-        V1[bvids.x + 0], V1[bvids.x + Vrows], V1[bvids.x + 2 * Vrows]);
-    ;
-    queries[8 * tid + 6] = ccd::make_Scalar3(
-        V1[bvids.y + 0], V1[bvids.y + Vrows], V1[bvids.y + 2 * Vrows]);
-    ;
-    queries[8 * tid + 7] = ccd::make_Scalar3(
-        V1[bvids.z + 0], V1[bvids.z + Vrows], V1[bvids.z + 2 * Vrows]);
-    ;
-
+    // queries[8 * tid + 3] = ccd::make_Scalar3(
+    //     V0[bvids.z + 0], V0[bvids.z + Vrows], V0[bvids.z + 2 * Vrows]);
+    // queries[8 * tid + 4] = ccd::make_Scalar3(
+    //     V1[avids.x + 0], V1[avids.x + Vrows], V1[avids.x + 2 * Vrows]);
+    // ;
+    // queries[8 * tid + 5] = ccd::make_Scalar3(
+    //     V1[bvids.x + 0], V1[bvids.x + Vrows], V1[bvids.x + 2 * Vrows]);
+    // ;
+    // queries[8 * tid + 6] = ccd::make_Scalar3(
+    //     V1[bvids.y + 0], V1[bvids.y + Vrows], V1[bvids.y + 2 * Vrows]);
+    // ;
+    // queries[8 * tid + 7] = ccd::make_Scalar3(
+    //     V1[bvids.z + 0], V1[bvids.z + Vrows], V1[bvids.z + 2 * Vrows]);
+    // ;
   } else if (is_edge(avids) && is_edge(bvids)) {
     // int j = atomicAdd(ee_count, 1);
-    queries[8 * tid + 0] = ccd::make_Scalar3(
-        V0[avids.x + 0], V0[avids.x + Vrows], V0[avids.x + 2 * Vrows]);
-    ;
 
-    queries[8 * tid + 1] = ccd::make_Scalar3(
-        V0[avids.y + 0], V0[avids.y + Vrows], V0[avids.y + 2 * Vrows]);
-    ;
+    for (size_t i = 0; i < 3; i++) {
+      data[tid].v0s[i] = V0[avids.x + i * Vrows];
+      data[tid].v1s[i] = V0[avids.y + i * Vrows];
+      data[tid].v2s[i] = V0[bvids.x + i * Vrows];
+      data[tid].v3s[i] = V0[bvids.y + i * Vrows];
+      data[tid].v0e[i] = V1[avids.x + i * Vrows];
+      data[tid].v1e[i] = V1[avids.y + i * Vrows];
+      data[tid].v2e[i] = V1[bvids.x + i * Vrows];
+      data[tid].v3e[i] = V1[bvids.y + i * Vrows];
+    }
 
-    queries[8 * tid + 2] = ccd::make_Scalar3(
-        V0[bvids.x + 0], V0[bvids.x + Vrows], V0[bvids.x + 2 * Vrows]);
-    ;
+    // queries[8 * tid + 0] = ccd::make_Scalar3(
+    //     V0[avids.x + 0], V0[avids.x + Vrows], V0[avids.x + 2 * Vrows]);
+    // ;
 
-    queries[8 * tid + 3] = ccd::make_Scalar3(
-        V0[bvids.y + 0], V0[bvids.y + Vrows], V0[bvids.y + 2 * Vrows]);
-    ;
+    // queries[8 * tid + 1] = ccd::make_Scalar3(
+    //     V0[avids.y + 0], V0[avids.y + Vrows], V0[avids.y + 2 * Vrows]);
+    // ;
 
-    queries[8 * tid + 4] = ccd::make_Scalar3(
-        V1[avids.x + 0], V1[avids.x + Vrows], V1[avids.x + 2 * Vrows]);
-    ;
+    // queries[8 * tid + 2] = ccd::make_Scalar3(
+    //     V0[bvids.x + 0], V0[bvids.x + Vrows], V0[bvids.x + 2 * Vrows]);
+    // ;
 
-    queries[8 * tid + 5] = ccd::make_Scalar3(
-        V1[avids.y + 0], V1[avids.y + Vrows], V1[avids.y + 2 * Vrows]);
-    ;
+    // queries[8 * tid + 3] = ccd::make_Scalar3(
+    //     V0[bvids.y + 0], V0[bvids.y + Vrows], V0[bvids.y + 2 * Vrows]);
+    // ;
 
-    queries[8 * tid + 6] = ccd::make_Scalar3(
-        V1[bvids.x + 0], V1[bvids.x + Vrows], V1[bvids.x + 2 * Vrows]);
-    ;
+    // queries[8 * tid + 4] = ccd::make_Scalar3(
+    //     V1[avids.x + 0], V1[avids.x + Vrows], V1[avids.x + 2 * Vrows]);
+    // ;
 
-    queries[8 * tid + 7] = ccd::make_Scalar3(
-        V1[bvids.y + 0], V1[bvids.y + Vrows], V1[bvids.y + 2 * Vrows]);
-    ;
+    // queries[8 * tid + 5] = ccd::make_Scalar3(
+    //     V1[avids.y + 0], V1[avids.y + Vrows], V1[avids.y + 2 * Vrows]);
+    // ;
+
+    //   queries[8 * tid + 6] = ccd::make_Scalar3(
+    //       V1[bvids.x + 0], V1[bvids.x + Vrows], V1[bvids.x + 2 * Vrows]);
+    //   ;
+
+    //   queries[8 * tid + 7] = ccd::make_Scalar3(
+    //       V1[bvids.y + 0], V1[bvids.y + Vrows], V1[bvids.y + 2 * Vrows]);
+    //   ;
   } else
     assert(0);
 }
@@ -204,45 +256,45 @@ bool is_file_exist(const char *fileName) {
   return infile.good();
 }
 
-__global__ void array_to_ccd(const ccd::Scalar3 *const a, int tmp_nbr,
-                             CCDdata *data) {
-  int tid = threadIdx.x + blockIdx.x * blockDim.x;
-  if (tid >= tmp_nbr)
-    return;
+// __global__ void array_to_ccd(const ccd::Scalar3 *const a, int tmp_nbr,
+//                              CCDdata *data) {
+//   int tid = threadIdx.x + blockIdx.x * blockDim.x;
+//   if (tid >= tmp_nbr)
+//     return;
 
-#ifndef NO_CHECK_MS
-  data[tid].ms = MINIMUM_SEPARATION_BENCHMARK;
-#endif
+// #ifndef NO_CHECK_MS
+//   data[tid].ms = MINIMUM_SEPARATION_BENCHMARK;
+// #endif
 
-  data[tid].v0s[0] = a[8 * tid + 0].x;
-  data[tid].v1s[0] = a[8 * tid + 1].x;
-  data[tid].v2s[0] = a[8 * tid + 2].x;
-  data[tid].v3s[0] = a[8 * tid + 3].x;
-  data[tid].v0e[0] = a[8 * tid + 4].x;
-  data[tid].v1e[0] = a[8 * tid + 5].x;
-  data[tid].v2e[0] = a[8 * tid + 6].x;
-  data[tid].v3e[0] = a[8 * tid + 7].x;
+//   data[tid].v0s[0] = a[8 * tid + 0].x;
+//   data[tid].v1s[0] = a[8 * tid + 1].x;
+//   data[tid].v2s[0] = a[8 * tid + 2].x;
+//   data[tid].v3s[0] = a[8 * tid + 3].x;
+//   data[tid].v0e[0] = a[8 * tid + 4].x;
+//   data[tid].v1e[0] = a[8 * tid + 5].x;
+//   data[tid].v2e[0] = a[8 * tid + 6].x;
+//   data[tid].v3e[0] = a[8 * tid + 7].x;
 
-  data[tid].v0s[1] = a[8 * tid + 0].y;
-  data[tid].v1s[1] = a[8 * tid + 1].y;
-  data[tid].v2s[1] = a[8 * tid + 2].y;
-  data[tid].v3s[1] = a[8 * tid + 3].y;
-  data[tid].v0e[1] = a[8 * tid + 4].y;
-  data[tid].v1e[1] = a[8 * tid + 5].y;
-  data[tid].v2e[1] = a[8 * tid + 6].y;
-  data[tid].v3e[1] = a[8 * tid + 7].y;
+//   data[tid].v0s[1] = a[8 * tid + 0].y;
+//   data[tid].v1s[1] = a[8 * tid + 1].y;
+//   data[tid].v2s[1] = a[8 * tid + 2].y;
+//   data[tid].v3s[1] = a[8 * tid + 3].y;
+//   data[tid].v0e[1] = a[8 * tid + 4].y;
+//   data[tid].v1e[1] = a[8 * tid + 5].y;
+//   data[tid].v2e[1] = a[8 * tid + 6].y;
+//   data[tid].v3e[1] = a[8 * tid + 7].y;
 
-  data[tid].v0s[2] = a[8 * tid + 0].z;
-  data[tid].v1s[2] = a[8 * tid + 1].z;
-  data[tid].v2s[2] = a[8 * tid + 2].z;
-  data[tid].v3s[2] = a[8 * tid + 3].z;
-  data[tid].v0e[2] = a[8 * tid + 4].z;
-  data[tid].v1e[2] = a[8 * tid + 5].z;
-  data[tid].v2e[2] = a[8 * tid + 6].z;
-  data[tid].v3e[2] = a[8 * tid + 7].z;
-}
+//   data[tid].v0s[2] = a[8 * tid + 0].z;
+//   data[tid].v1s[2] = a[8 * tid + 1].z;
+//   data[tid].v2s[2] = a[8 * tid + 2].z;
+//   data[tid].v3s[2] = a[8 * tid + 3].z;
+//   data[tid].v0e[2] = a[8 * tid + 4].z;
+//   data[tid].v1e[2] = a[8 * tid + 5].z;
+//   data[tid].v2e[2] = a[8 * tid + 6].z;
+//   data[tid].v3e[2] = a[8 * tid + 7].z;
+// }
 
-void run_memory_pool_ccd(const ccd::Scalar3 *const V, int tmp_nbr, bool is_edge,
+void run_memory_pool_ccd(CCDdata *d_data_list, int tmp_nbr, bool is_edge,
                          std::vector<int> &result_list, int parallel_nbr,
                          double &run_time, ccd::Scalar &toi) {
   int nbr = tmp_nbr;
@@ -253,21 +305,21 @@ void run_memory_pool_ccd(const ccd::Scalar3 *const V, int tmp_nbr, bool is_edge,
   // ccd::Scalar3 tmp;
   // cudaMemcpy(&tmp, &V[0], sizeof(ccd::Scalar3), cudaMemcpyDeviceToHost);
   // cout << tmp.x << " " << tmp.y << " " << tmp.z << endl;
-  CCDdata *d_data_list;
-  size_t data_size = sizeof(CCDdata) * nbr;
-  printf("data_size %llu\n", data_size);
-  cudaMalloc((void **)&d_data_list, data_size);
-  gpuErrchk(cudaGetLastError());
-  array_to_ccd<<<nbr / parallel_nbr + 1, parallel_nbr>>>(V, nbr, d_data_list);
-  cudaDeviceSynchronize();
-  gpuErrchk(cudaGetLastError());
-  printf("Finished array_to_ccd\n");
+  // CCDdata *d_data_list;
+  // size_t data_size = sizeof(CCDdata) * nbr;
+  // printf("data_size %llu\n", data_size);
+  // cudaMalloc((void **)&d_data_list, data_size);
+  // gpuErrchk(cudaGetLastError());
+  // array_to_ccd<<<nbr / parallel_nbr + 1, parallel_nbr>>>(V, nbr,
+  // d_data_list); cudaDeviceSynchronize(); gpuErrchk(cudaGetLastError());
+  // printf("Finished array_to_ccd\n");
 
   // int *res = new int[nbr];
   // MP_unit *units = new MP_unit[UNIT_SIZE];
   CCDConfig *config = new CCDConfig[1];
   // config[0].err_in[0] =
-  //     -1; // the input error bound calculate from the AABB of the whole mesh
+  //     -1; // the input error bound calculate from the AABB of the whole
+  //     mesh
   config[0].co_domain_tolerance = 1e-6; // tolerance of the co-domain
   // config[0].max_t = 1;                  // the upper bound of the time
   // interval
@@ -348,7 +400,8 @@ void run_memory_pool_ccd(const ccd::Scalar3 *const V, int tmp_nbr, bool is_edge,
     //            cudaMemcpyDeviceToHost);
     // std::cout << "toi " << toi << std::endl;
     // printf("toi %.4f\n", toi);
-    // printf("Start %i, End %i, Queue size: %i\n", start, end, nbr_per_loop);
+    // printf("Start %i, End %i, Queue size: %i\n", start, end,
+    // nbr_per_loop);
     gpuErrchk(cudaGetLastError());
     printf("Queue size: %i\n", nbr_per_loop);
   }
@@ -463,22 +516,30 @@ void run_ccd(const vector<Aabb> boxes, const Eigen::MatrixXd &vertices_t0,
   cudaMemcpy(&ee_size, d_ee_count, sizeof(int), cudaMemcpyDeviceToHost);
   cout << "vf_size " << vf_size << " ee_size " << ee_size << endl;
 
-  ccd::Scalar3 *d_ee_queries;
-  ccd::Scalar3 *d_vf_queries;
-  // size_t queries_size = sizeof(ccd::Scalar3) * 8 * count;
-  // cout << "queries size: " << queries_size << endl;
-  cudaMalloc((void **)&d_ee_queries, sizeof(ccd::Scalar3) * 8 * ee_size);
-  cudaMalloc((void **)&d_vf_queries, sizeof(ccd::Scalar3) * 8 * vf_size);
-  gpuErrchk(cudaGetLastError());
+  // ccd::Scalar3 *d_ee_queries;
+  // ccd::Scalar3 *d_vf_queries;
+  // // size_t queries_size = sizeof(ccd::Scalar3) * 8 * count;
+  // // cout << "queries size: " << queries_size << endl;
+  // cudaMalloc((void **)&d_ee_queries, sizeof(ccd::Scalar3) * 8 * ee_size);
+  // cudaMalloc((void **)&d_vf_queries, sizeof(ccd::Scalar3) * 8 * vf_size);
+  // gpuErrchk(cudaGetLastError());
+
+  CCDdata *d_ee_data_list;
+  CCDdata *d_vf_data_list;
+  size_t ee_data_size = sizeof(CCDdata) * ee_size;
+  size_t vf_data_size = sizeof(CCDdata) * vf_size;
+  // printf("data_size %llu\n", data_size);
+  cudaMalloc((void **)&d_ee_data_list, ee_data_size);
+  cudaMalloc((void **)&d_vf_data_list, vf_data_size);
 
   addData<<<ee_size / threads + 1, threads>>>(d_ee_overlaps, d_boxes,
                                               d_vertices_t0, d_vertices_t1,
-                                              Vrows, ee_size, d_ee_queries);
+                                              Vrows, ee_size, d_ee_data_list);
   cudaDeviceSynchronize();
   gpuErrchk(cudaGetLastError());
   addData<<<vf_size / threads + 1, threads>>>(d_vf_overlaps, d_boxes,
                                               d_vertices_t0, d_vertices_t1,
-                                              Vrows, vf_size, d_vf_queries);
+                                              Vrows, vf_size, d_vf_data_list);
   cudaDeviceSynchronize();
   gpuErrchk(cudaGetLastError());
 
@@ -512,15 +573,15 @@ void run_ccd(const vector<Aabb> boxes, const Eigen::MatrixXd &vertices_t0,
   printf("run_memory_pool_ccd using %i threads\n", parallel);
   r.Start("run_memory_pool_ccd (narrowphase)", /*gpu=*/true);
   toi = 1;
-  run_memory_pool_ccd(d_vf_queries, vf_size, /*is_edge_edge=*/false,
+  run_memory_pool_ccd(d_vf_data_list, vf_size, /*is_edge_edge=*/false,
                       result_list, parallel, tmp_tall, toi);
   cudaDeviceSynchronize();
   gpuErrchk(cudaGetLastError());
   printf("toi after vf %e\n", toi);
   printf("time after vf %.6f\n", tmp_tall);
 
-  run_memory_pool_ccd(d_ee_queries, ee_size, /*is_edge_edge=*/true, result_list,
-                      parallel, tmp_tall, toi);
+  run_memory_pool_ccd(d_ee_data_list, ee_size, /*is_edge_edge=*/true,
+                      result_list, parallel, tmp_tall, toi);
   gpuErrchk(cudaGetLastError());
   printf("toi after ee %e\n", toi);
   printf("time after ee %.6f\n", tmp_tall);

@@ -2,6 +2,7 @@
 #include <ccdgpu/record.hpp>
 #include <gpubf/aabb.cuh>
 #include <gputi/CType.cuh>
+#include <gputi/Type.hpp>
 
 // using namespace ccdgpu;
 
@@ -24,7 +25,8 @@ __global__ void addData(const int2 *const overlaps,
                         const ccdgpu::Aabb *const boxes,
                         const ccd::Scalar *const V0,
                         const ccd::Scalar *const V1, int Vrows, int N,
-                        ccd::Scalar3 *queries);
+                        // ccd::Scalar3 *queries);
+                        CCDdata *data);
 
 void addData(const ccdgpu::Aabb &a, const ccdgpu::Aabb &b,
              const Eigen::MatrixXd &V0, const Eigen::MatrixXd &V1,
