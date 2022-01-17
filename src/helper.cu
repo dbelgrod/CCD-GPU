@@ -422,11 +422,11 @@ void run_memory_pool_ccd(CCDdata *d_data_list, int tmp_nbr, bool is_edge,
   // cudaMemcpy(dbg, d_dbg, dbg_size, cudaMemcpyDeviceToHost);
 
   gpuErrchk(cudaFree(d_data_list));
-  if (is_edge) {
-    // cudaFree(d_res);
-    gpuErrchk(cudaFree(d_units));
-    gpuErrchk(cudaFree(d_config));
-  }
+  // if (is_edge) {
+  // cudaFree(d_res);
+  gpuErrchk(cudaFree(d_units));
+  gpuErrchk(cudaFree(d_config));
+  // }
 
   // for (size_t i = 0; i < nbr; i++) {
   //   result_list[i] = res[i];
