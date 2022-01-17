@@ -531,6 +531,9 @@ void run_ccd(const vector<Aabb> boxes, const Eigen::MatrixXd &vertices_t0,
   // printf("data_size %llu\n", data_size);
   cudaMalloc((void **)&d_ee_data_list, ee_data_size);
   cudaMalloc((void **)&d_vf_data_list, vf_data_size);
+  printf("ee_data_size %llu\n", ee_data_size);
+  printf("vf_data_size %llu\n", vf_data_size);
+  gpuErrchk(cudaGetLastError());
 
   addData<<<ee_size / threads + 1, threads>>>(d_ee_overlaps, d_boxes,
                                               d_vertices_t0, d_vertices_t1,
@@ -593,4 +596,7 @@ void run_ccd(const vector<Aabb> boxes, const Eigen::MatrixXd &vertices_t0,
   cout << "avg time " << tavg << endl;
 
   cout << "toi " << toi << endl;
+  cudaDeviceReset();
+  cudaDeviceSynchronize();
+  gpuErrchk(cudaGetLastError());
 }
