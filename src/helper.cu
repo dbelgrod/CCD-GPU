@@ -421,11 +421,11 @@ void run_memory_pool_ccd(CCDdata *d_data_list, int tmp_nbr, bool is_edge,
     printf("OVERFLOW!!!!\n");
   // cudaMemcpy(dbg, d_dbg, dbg_size, cudaMemcpyDeviceToHost);
 
+  gpuErrchk(cudaFree(d_data_list));
   if (is_edge) {
-    cudaFree(d_data_list);
     // cudaFree(d_res);
-    cudaFree(d_units);
-    cudaFree(d_config);
+    gpuErrchk(cudaFree(d_units));
+    gpuErrchk(cudaFree(d_config));
   }
 
   // for (size_t i = 0; i < nbr; i++) {
@@ -548,14 +548,14 @@ void run_ccd(const vector<Aabb> boxes, const Eigen::MatrixXd &vertices_t0,
 
   r.Stop();
 
-  cudaFree(d_overlaps);
-  cudaFree(d_boxes);
-  cudaFree(d_vertices_t0);
-  cudaFree(d_vertices_t1);
-  cudaFree(d_vf_overlaps);
-  cudaFree(d_ee_overlaps);
-  cudaFree(d_vf_count);
-  cudaFree(d_ee_count);
+  gpuErrchk(cudaFree(d_overlaps));
+  gpuErrchk(cudaFree(d_boxes));
+  gpuErrchk(cudaFree(d_vertices_t0));
+  gpuErrchk(cudaFree(d_vertices_t1));
+  gpuErrchk(cudaFree(d_vf_overlaps));
+  gpuErrchk(cudaFree(d_ee_overlaps));
+  gpuErrchk(cudaFree(d_vf_count));
+  gpuErrchk(cudaFree(d_ee_count));
   gpuErrchk(cudaGetLastError());
 
   cudaDeviceSynchronize();
@@ -596,7 +596,5 @@ void run_ccd(const vector<Aabb> boxes, const Eigen::MatrixXd &vertices_t0,
   cout << "avg time " << tavg << endl;
 
   cout << "toi " << toi << endl;
-  cudaFree(d_ee_data_list);
-  cudaFree(d_vf_data_list);
   cudaDeviceReset();
 }
