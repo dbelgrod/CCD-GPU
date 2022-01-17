@@ -596,5 +596,5 @@ void run_ccd(const vector<Aabb> boxes, const Eigen::MatrixXd &vertices_t0,
   cout << "avg time " << tavg << endl;
 
   cout << "toi " << toi << endl;
-  cudaDeviceReset();
+  // cudaDeviceReset();
 }
