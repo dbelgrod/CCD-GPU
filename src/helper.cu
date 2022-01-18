@@ -313,7 +313,7 @@ void run_memory_pool_ccd(CCDdata *d_data_list, int tmp_nbr, bool is_edge,
   config[0].mp_start = 0;
   config[0].mp_remaining = nbr;
   config[0].overflow_flag = 0;
-  config[0].unit_size = nbr * 4; // 2.0 * nbr;
+  config[0].unit_size = nbr * 8; // 2.0 * nbr;
   printf("unit_size : %llu\n", config[0].unit_size);
 
   // device
