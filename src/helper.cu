@@ -299,35 +299,22 @@ void run_memory_pool_ccd(CCDdata *d_data_list, int tmp_nbr, bool is_edge,
                          double &run_time, ccd::Scalar &toi) {
   int nbr = tmp_nbr;
   cout << "tmp_nbr " << tmp_nbr << endl;
-  // result_list.resize(nbr);
-  // host
-  // CCDdata *data_list = new CCDdata[nbr];
-  // ccd::Scalar3 tmp;
-  // cudaMemcpy(&tmp, &V[0], sizeof(ccd::Scalar3), cudaMemcpyDeviceToHost);
-  // cout << tmp.x << " " << tmp.y << " " << tmp.z << endl;
-  // CCDdata *d_data_list;
-  // size_t data_size = sizeof(CCDdata) * nbr;
-  // printf("data_size %llu\n", data_size);
-  // cudaMalloc((void **)&d_data_list, data_size);
-  // gpuErrchk(cudaGetLastError());
-  // array_to_ccd<<<nbr / parallel_nbr + 1, parallel_nbr>>>(V, nbr,
-  // d_data_list); cudaDeviceSynchronize(); gpuErrchk(cudaGetLastError());
-  // printf("Finished array_to_ccd\n");
-
   // int *res = new int[nbr];
-  // MP_unit *units = new MP_unit[UNIT_SIZE];
   CCDConfig *config = new CCDConfig[1];
   // config[0].err_in[0] =
   //     -1; // the input error bound calculate from the AABB of the whole
   //     mesh
   config[0].co_domain_tolerance = 1e-6; // tolerance of the co-domain
   // config[0].max_t = 1;                  // the upper bound of the time
+
   // interval
   config[0].toi = toi;
   config[0].mp_end = nbr;
   config[0].mp_start = 0;
   config[0].mp_remaining = nbr;
   config[0].overflow_flag = 0;
+  config[0].unit_size = nbr * 4; // 2.0 * nbr;
+  printf("unit_size : %llu\n", config[0].unit_size);
 
   // device
   // CCDdata *d_data_list;
@@ -335,8 +322,10 @@ void run_memory_pool_ccd(CCDdata *d_data_list, int tmp_nbr, bool is_edge,
   MP_unit *d_units;
   CCDConfig *d_config;
 
+  size_t unit_size = sizeof(MP_unit) * config[0].unit_size; // arbitrary #
+
   // size_t result_size = sizeof(int) * nbr;
-  size_t unit_size = sizeof(MP_unit) * UNIT_SIZE;
+
   // int dbg_size=sizeof(ccd::Scalar)*8;
 
   // cudaMalloc(&d_data_list, data_size);
@@ -366,7 +355,6 @@ void run_memory_pool_ccd(CCDdata *d_data_list, int tmp_nbr, bool is_edge,
   cudaDeviceSynchronize();
   gpuErrchk(cudaGetLastError());
 
-  printf("UNIT_SIZE: %llu\n", UNIT_SIZE);
   printf("EACH_LAUNCH_SIZE: %llu\n", EACH_LAUNCH_SIZE);
   printf("sizeof(Scalar) %i\n", sizeof(ccd::Scalar));
   // cudaMemcpy(&toi, &d_config[0].toi, sizeof(ccd::Scalar),
@@ -377,6 +365,7 @@ void run_memory_pool_ccd(CCDdata *d_data_list, int tmp_nbr, bool is_edge,
   int start;
   int end;
   //   int inc = 0;
+  // int unit_size = config[0].unit_size;
   printf("Queue size t0: %i\n", nbr_per_loop);
   while (nbr_per_loop > 0) {
     if (is_edge) {
