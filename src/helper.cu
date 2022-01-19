@@ -355,7 +355,7 @@ void run_memory_pool_ccd(CCDdata *d_data_list, int tmp_nbr, bool is_edge,
   cudaDeviceSynchronize();
   gpuErrchk(cudaGetLastError());
 
-  printf("EACH_LAUNCH_SIZE: %llu\n", EACH_LAUNCH_SIZE);
+  printf("MAX_OVERLAP_SIZE: %llu\n", MAX_OVERLAP_SIZE);
   printf("sizeof(Scalar) %i\n", sizeof(ccd::Scalar));
   // cudaMemcpy(&toi, &d_config[0].toi, sizeof(ccd::Scalar),
   //            cudaMemcpyDeviceToHost);
@@ -484,100 +484,122 @@ void run_ccd(const vector<Aabb> boxes, const Eigen::MatrixXd &vertices_t0,
   int *d_ee_count;
   cudaMalloc((void **)&d_vf_count, sizeof(int));
   cudaMalloc((void **)&d_ee_count, sizeof(int));
-  cudaMemset(d_vf_count, 0, sizeof(int));
-  cudaMemset(d_ee_count, 0, sizeof(int));
 
   gpuErrchk(cudaGetLastError());
 
   int2 *d_vf_overlaps;
   int2 *d_ee_overlaps;
-  cudaMalloc((void **)&d_vf_overlaps, sizeof(int2) * count);
-  cudaMalloc((void **)&d_ee_overlaps, sizeof(int2) * count);
 
-  split_overlaps<<<count / threads + 1, threads>>>(d_overlaps, d_boxes, count,
-                                                   d_vf_overlaps, d_ee_overlaps,
-                                                   d_vf_count, d_ee_count);
-  cudaDeviceSynchronize();
+  int start_id = 0;
+  int size = count;
 
-  int vf_size;
-  int ee_size;
-  cudaMemcpy(&vf_size, d_vf_count, sizeof(int), cudaMemcpyDeviceToHost);
-  cudaMemcpy(&ee_size, d_ee_count, sizeof(int), cudaMemcpyDeviceToHost);
-  cout << "vf_size " << vf_size << " ee_size " << ee_size << endl;
+  double tavg = 0;
+  double tmp_tall = 0;
+  toi = 1.0;
 
-  // ccd::Scalar3 *d_ee_queries;
-  // ccd::Scalar3 *d_vf_queries;
-  // // size_t queries_size = sizeof(ccd::Scalar3) * 8 * count;
-  // // cout << "queries size: " << queries_size << endl;
-  // cudaMalloc((void **)&d_ee_queries, sizeof(ccd::Scalar3) * 8 * ee_size);
-  // cudaMalloc((void **)&d_vf_queries, sizeof(ccd::Scalar3) * 8 * vf_size);
-  // gpuErrchk(cudaGetLastError());
+  while (1) {
 
-  CCDdata *d_ee_data_list;
-  CCDdata *d_vf_data_list;
-  size_t ee_data_size = sizeof(CCDdata) * ee_size;
-  size_t vf_data_size = sizeof(CCDdata) * vf_size;
-  // printf("data_size %llu\n", data_size);
-  cudaMalloc((void **)&d_ee_data_list, ee_data_size);
-  cudaMalloc((void **)&d_vf_data_list, vf_data_size);
-  printf("ee_data_size %llu\n", ee_data_size);
-  printf("vf_data_size %llu\n", vf_data_size);
-  gpuErrchk(cudaGetLastError());
+    int remain = size - start_id;
+    if (remain <= 0 || toi == 0)
+      break;
+    printf("remain %i, start_id %i\n", remain, start_id);
 
-  addData<<<ee_size / threads + 1, threads>>>(d_ee_overlaps, d_boxes,
-                                              d_vertices_t0, d_vertices_t1,
-                                              Vrows, ee_size, d_ee_data_list);
-  cudaDeviceSynchronize();
-  gpuErrchk(cudaGetLastError());
-  addData<<<vf_size / threads + 1, threads>>>(d_vf_overlaps, d_boxes,
-                                              d_vertices_t0, d_vertices_t1,
-                                              Vrows, vf_size, d_vf_data_list);
-  cudaDeviceSynchronize();
-  gpuErrchk(cudaGetLastError());
+    int tmp_nbr = std::min(remain, MAX_OVERLAP_SIZE);
 
-  r.Stop();
+    cudaMemset(d_vf_count, 0, sizeof(int));
+    cudaMemset(d_ee_count, 0, sizeof(int));
 
+    cudaMalloc((void **)&d_vf_overlaps, sizeof(int2) * tmp_nbr);
+    cudaMalloc((void **)&d_ee_overlaps, sizeof(int2) * tmp_nbr);
+
+    split_overlaps<<<tmp_nbr / threads + 1, threads>>>(
+        d_overlaps + start_id, d_boxes, tmp_nbr, d_vf_overlaps, d_ee_overlaps,
+        d_vf_count, d_ee_count);
+    cudaDeviceSynchronize();
+
+    int vf_size;
+    int ee_size;
+    cudaMemcpy(&vf_size, d_vf_count, sizeof(int), cudaMemcpyDeviceToHost);
+    cudaMemcpy(&ee_size, d_ee_count, sizeof(int), cudaMemcpyDeviceToHost);
+    cout << "vf_size " << vf_size << " ee_size " << ee_size << endl;
+
+    CCDdata *d_ee_data_list;
+    CCDdata *d_vf_data_list;
+    // size_t max_query_cp_size = EACH_LAUNCH_SIZE;
+
+    // ee_size_tmp = max(ee_size, EACH_LAUNCH_SIZE);
+    // vf_size_tmp = max(vf_size, EACH_LAUNCH_SIZE);
+    // ee_size -= ee_size_tmp;
+    // vf_size -= vf_size_tmp;
+    r.Start("broadphase -> narrowphase", /*gpu=*/true);
+    size_t ee_data_size = sizeof(CCDdata) * ee_size;
+    size_t vf_data_size = sizeof(CCDdata) * vf_size;
+    // printf("data_size %llu\n", data_size);
+
+    cudaMalloc((void **)&d_ee_data_list, ee_data_size);
+    cudaMalloc((void **)&d_vf_data_list, vf_data_size);
+    printf("ee_data_size %llu\n", ee_data_size);
+    printf("vf_data_size %llu\n", vf_data_size);
+    gpuErrchk(cudaGetLastError());
+
+    addData<<<ee_size / threads + 1, threads>>>(d_ee_overlaps, d_boxes,
+                                                d_vertices_t0, d_vertices_t1,
+                                                Vrows, ee_size, d_ee_data_list);
+    cudaDeviceSynchronize();
+    gpuErrchk(cudaGetLastError());
+    addData<<<vf_size / threads + 1, threads>>>(d_vf_overlaps, d_boxes,
+                                                d_vertices_t0, d_vertices_t1,
+                                                Vrows, vf_size, d_vf_data_list);
+    cudaDeviceSynchronize();
+    gpuErrchk(cudaGetLastError());
+
+    r.Stop();
+
+    printf("vf_size %i, ee_size %i\n", vf_size, ee_size);
+
+    // int size = count;
+    // cout << "data loaded, size " << queries.size() << endl;
+    cout << "data loaded, size " << size << endl;
+
+    // int start_id = 0;
+
+    // result_list.resize(size);
+
+    // bool is_edge_edge = true;
+
+    printf("run_memory_pool_ccd using %i threads\n", parallel);
+    r.Start("run_memory_pool_ccd (narrowphase)", /*gpu=*/true);
+    // toi = 1;
+    run_memory_pool_ccd(d_vf_data_list, vf_size, /*is_edge_edge=*/false,
+                        result_list, parallel, tmp_tall, toi);
+    cudaDeviceSynchronize();
+    gpuErrchk(cudaGetLastError());
+    printf("toi after vf %e\n", toi);
+    printf("time after vf %.6f\n", tmp_tall);
+
+    run_memory_pool_ccd(d_ee_data_list, ee_size, /*is_edge_edge=*/true,
+                        result_list, parallel, tmp_tall, toi);
+    gpuErrchk(cudaGetLastError());
+    printf("toi after ee %e\n", toi);
+    printf("time after ee %.6f\n", tmp_tall);
+    r.Stop();
+
+    gpuErrchk(cudaFree(d_vf_overlaps));
+    gpuErrchk(cudaFree(d_ee_overlaps));
+
+    start_id += tmp_nbr;
+  }
+
+  gpuErrchk(cudaFree(d_vf_count));
+  gpuErrchk(cudaFree(d_ee_count));
   gpuErrchk(cudaFree(d_overlaps));
   gpuErrchk(cudaFree(d_boxes));
   gpuErrchk(cudaFree(d_vertices_t0));
   gpuErrchk(cudaFree(d_vertices_t1));
-  gpuErrchk(cudaFree(d_vf_overlaps));
-  gpuErrchk(cudaFree(d_ee_overlaps));
-  gpuErrchk(cudaFree(d_vf_count));
-  gpuErrchk(cudaFree(d_ee_count));
+
   gpuErrchk(cudaGetLastError());
 
   cudaDeviceSynchronize();
-
-  printf("vf_size %i, ee_size %i\n", vf_size, ee_size);
-
-  int size = count;
-  // cout << "data loaded, size " << queries.size() << endl;
-  cout << "data loaded, size " << size << endl;
-  double tavg = 0;
-  size_t max_query_cp_size = EACH_LAUNCH_SIZE;
-  int start_id = 0;
-
-  // result_list.resize(size);
-  double tmp_tall = 0;
-  // bool is_edge_edge = true;
-
-  printf("run_memory_pool_ccd using %i threads\n", parallel);
-  r.Start("run_memory_pool_ccd (narrowphase)", /*gpu=*/true);
-  toi = 1;
-  run_memory_pool_ccd(d_vf_data_list, vf_size, /*is_edge_edge=*/false,
-                      result_list, parallel, tmp_tall, toi);
-  cudaDeviceSynchronize();
-  gpuErrchk(cudaGetLastError());
-  printf("toi after vf %e\n", toi);
-  printf("time after vf %.6f\n", tmp_tall);
-
-  run_memory_pool_ccd(d_ee_data_list, ee_size, /*is_edge_edge=*/true,
-                      result_list, parallel, tmp_tall, toi);
-  gpuErrchk(cudaGetLastError());
-  printf("toi after ee %e\n", toi);
-  printf("time after ee %.6f\n", tmp_tall);
-  r.Stop();
 
   tavg += tmp_tall;
   cout << "tot time " << tavg << endl;
