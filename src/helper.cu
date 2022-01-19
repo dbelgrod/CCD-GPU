@@ -58,9 +58,9 @@ __global__ void addData(const int2 *const overlaps,
   if (tid >= N)
     return;
 
-#ifndef NO_CHECK_MS
-  data[tid].ms = MINIMUM_SEPARATION_BENCHMARK;
-#endif
+  // #ifndef NO_CHECK_MS
+  data[tid].ms = 0.0;
+  // #endif
 
   // printf("vf_count %i, ee_count %i", *vf_count, *ee_count);
 
