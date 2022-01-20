@@ -53,7 +53,7 @@ __global__ void addData(const int2 *const overlaps,
                         const ccdgpu::Aabb *const boxes,
                         const ccd::Scalar *const V0,
                         const ccd::Scalar *const V1, int Vrows, int N,
-                        CCDdata *data) {
+                        ccd::CCDdata *data) {
   int tid = threadIdx.x + blockIdx.x * blockDim.x;
   if (tid >= N)
     return;
@@ -433,22 +433,22 @@ void run_memory_pool_ccd(CCDdata *d_data_list, int tmp_nbr, bool is_edge,
 }
 
 void run_ccd(const vector<Aabb> boxes, const Eigen::MatrixXd &vertices_t0,
-             const Eigen::MatrixXd &vertices_t1, Record &r, int N, int &nbox,
-             int &parallel, int &devcount, vector<pair<int, int>> &overlaps,
-             vector<int> &result_list, ccd::Scalar &toi) {
+             const Eigen::MatrixXd &vertices_t1, ccdgpu::Record &r, int N,
+             int &nbox, int &parallel, int &devcount,
+             vector<pair<int, int>> &overlaps, vector<int> &result_list,
+             ccd::Scalar &toi) {
   int2 *d_overlaps;
   int *d_count;
   int threads = 32; // HARDCODING THREADS FOR NOW
   r.Start("run_sweep_sharedqueue (broadphase)", /*gpu=*/true);
   run_sweep_sharedqueue(boxes.data(), N, nbox, overlaps, d_overlaps, d_count,
                         threads, devcount);
-  threads = 1024;
-  // gpuErrchk(cudaDeviceSynchronize());
   r.Stop();
+  threads = 1024;
   gpuErrchk(cudaGetLastError());
   printf("Threads now %i\n", threads);
 
-  r.Start("broadphase -> narrowphase", /*gpu=*/true);
+  r.Start("copyBoxesToGpu", /*gpu=*/true);
   // copy overlap count
   int count;
   gpuErrchk(cudaMemcpy(&count, d_count, sizeof(int), cudaMemcpyDeviceToHost));
@@ -460,6 +460,7 @@ void run_ccd(const vector<Aabb> boxes, const Eigen::MatrixXd &vertices_t0,
   cudaMalloc((void **)&d_boxes, sizeof(Aabb) * N);
   cudaMemcpy(d_boxes, boxes.data(), sizeof(Aabb) * N, cudaMemcpyHostToDevice);
   gpuErrchk(cudaGetLastError());
+  r.Stop();
 
   // ccd::Scalar3 *d_queries;
   // size_t queries_size = sizeof(ccd::Scalar3) * 8 * count;
@@ -467,6 +468,7 @@ void run_ccd(const vector<Aabb> boxes, const Eigen::MatrixXd &vertices_t0,
   // cudaMalloc((void **)&d_queries, queries_size);
   // gpuErrchk(cudaGetLastError());
 
+  r.Start("copyVerticesToGpu", /*gpu=*/true);
   printf("Copying vertices\n");
   ccd::Scalar *d_vertices_t0;
   ccd::Scalar *d_vertices_t1;
@@ -476,7 +478,7 @@ void run_ccd(const vector<Aabb> boxes, const Eigen::MatrixXd &vertices_t0,
              sizeof(ccd::Scalar) * vertices_t0.size(), cudaMemcpyHostToDevice);
   cudaMemcpy(d_vertices_t1, vertices_t1.data(),
              sizeof(ccd::Scalar) * vertices_t1.size(), cudaMemcpyHostToDevice);
-
+  r.Stop();
   int Vrows = vertices_t0.rows();
   assert(Vrows == vertices_t1.rows());
 
@@ -496,6 +498,7 @@ void run_ccd(const vector<Aabb> boxes, const Eigen::MatrixXd &vertices_t0,
   double tavg = 0;
   double tmp_tall = 0;
   toi = 1.0;
+  r.Stop();
 
   while (1) {
 
@@ -506,22 +509,29 @@ void run_ccd(const vector<Aabb> boxes, const Eigen::MatrixXd &vertices_t0,
 
     int tmp_nbr = std::min(remain, MAX_OVERLAP_SIZE);
 
+    r.Start("splitOverlaps", /*gpu=*/true);
     cudaMemset(d_vf_count, 0, sizeof(int));
     cudaMemset(d_ee_count, 0, sizeof(int));
+    gpuErrchk(cudaGetLastError());
 
     cudaMalloc((void **)&d_vf_overlaps, sizeof(int2) * tmp_nbr);
     cudaMalloc((void **)&d_ee_overlaps, sizeof(int2) * tmp_nbr);
+    gpuErrchk(cudaGetLastError());
 
     split_overlaps<<<tmp_nbr / threads + 1, threads>>>(
         d_overlaps + start_id, d_boxes, tmp_nbr, d_vf_overlaps, d_ee_overlaps,
         d_vf_count, d_ee_count);
     cudaDeviceSynchronize();
+    gpuErrchk(cudaGetLastError());
+    r.Stop();
 
+    r.Start("createDataList", /*gpu=*/true);
     int vf_size;
     int ee_size;
     cudaMemcpy(&vf_size, d_vf_count, sizeof(int), cudaMemcpyDeviceToHost);
     cudaMemcpy(&ee_size, d_ee_count, sizeof(int), cudaMemcpyDeviceToHost);
     cout << "vf_size " << vf_size << " ee_size " << ee_size << endl;
+    gpuErrchk(cudaGetLastError());
 
     CCDdata *d_ee_data_list;
     CCDdata *d_vf_data_list;
@@ -531,7 +541,7 @@ void run_ccd(const vector<Aabb> boxes, const Eigen::MatrixXd &vertices_t0,
     // vf_size_tmp = max(vf_size, EACH_LAUNCH_SIZE);
     // ee_size -= ee_size_tmp;
     // vf_size -= vf_size_tmp;
-    r.Start("broadphase -> narrowphase", /*gpu=*/true);
+
     size_t ee_data_size = sizeof(CCDdata) * ee_size;
     size_t vf_data_size = sizeof(CCDdata) * vf_size;
     // printf("data_size %llu\n", data_size);

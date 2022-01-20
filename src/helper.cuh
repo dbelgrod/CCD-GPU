@@ -26,7 +26,7 @@ __global__ void addData(const int2 *const overlaps,
                         const ccd::Scalar *const V0,
                         const ccd::Scalar *const V1, int Vrows, int N,
                         // ccd::Scalar3 *queries);
-                        CCDdata *data);
+                        ccd::CCDdata *data);
 
 void addData(const ccdgpu::Aabb &a, const ccdgpu::Aabb &b,
              const Eigen::MatrixXd &V0, const Eigen::MatrixXd &V1,
@@ -35,6 +35,7 @@ void addData(const ccdgpu::Aabb &a, const ccdgpu::Aabb &b,
 bool is_file_exist(const char *fileName);
 
 void run_ccd(vector<ccdgpu::Aabb> boxes, const Eigen::MatrixXd &vertices_t0,
-             const Eigen::MatrixXd &vertices_t1, Record &r, int N, int &nbox,
-             int &parallel, int &devcount, vector<pair<int, int>> &overlaps,
-             vector<int> &result_list, ccd::Scalar &toi);
+             const Eigen::MatrixXd &vertices_t1, ccdgpu::Record &r, int N,
+             int &nbox, int &parallel, int &devcount,
+             vector<pair<int, int>> &overlaps, vector<int> &result_list,
+             ccd::Scalar &toi);

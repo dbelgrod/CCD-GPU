@@ -15,7 +15,7 @@
 
 int main(int argc, char **argv) {
   vector<char *> compare;
-  Record r;
+  ccdgpu::Record r;
 
   char *filet0;
   char *filet1;

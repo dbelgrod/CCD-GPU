@@ -21,8 +21,10 @@
 #include <gputi/timer.hpp>
 
 #include <nlohmann/json.hpp>
+
+namespace ccdgpu {
 using json = nlohmann::json;
-using namespace ccd;
+
 
 // template <typename... Arguments>
 // void recordLaunch(char* tag, void(*f)(Arguments...), Arguments... args) {
@@ -115,3 +117,5 @@ struct Record
             return j_object;
       }
 };
+
+}
