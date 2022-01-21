@@ -9,12 +9,9 @@
 #include <limits>
 #include <utility>
 
-
 namespace ccd {
 ///////////////////////////////
 // here are the parameters for the memory pool
-// static const int UNIT_SIZE = 2e7;
-static const long UNIT_SIZE = 2e8;
 static const int MAX_OVERLAP_SIZE = 1e7;
 static const int MAX_CHECKS = 1e6;
 

@@ -25,7 +25,6 @@ else()
   set(CCDGPU_TOPLEVEL_PROJECT OFF)
 endif()
 
-# OPTION(GPUTI_WITH_BENCHMARK          "run benchmark for testing"   OFF)
 OPTION(GPUTI_WITH_DOUBLE_PRECISION   "use double precision calculation" ON)
 
 

@@ -4,7 +4,6 @@
 #include <iostream>
 #include <vector>
 
-
 #include <cuda/semaphore>
 
 #define gpuErrchk(ans)                                                         \
@@ -20,39 +19,6 @@ inline void gpuAssert(cudaError_t code, const char *file, int line,
 }
 
 namespace ccd {
-CCDdata array_to_ccd(const std::array<std::array<Scalar, 3>, 8> &a) {
-  CCDdata data;
-#pragma unroll
-  for (int i = 0; i < 3; i++) {
-    data.v0s[i] = a[0][i];
-    data.v1s[i] = a[1][i];
-    data.v2s[i] = a[2][i];
-    data.v3s[i] = a[3][i];
-    data.v0e[i] = a[4][i];
-    data.v1e[i] = a[5][i];
-    data.v2e[i] = a[6][i];
-    data.v3e[i] = a[7][i];
-  }
-  return data;
-}
-
-CCDdata array_to_ccd(const std::array<std::array<Scalar, 3>, 8> &a,
-                     const Scalar ms) {
-  CCDdata data;
-#pragma unroll
-  for (int i = 0; i < 3; i++) {
-    data.v0s[i] = a[0][i];
-    data.v1s[i] = a[1][i];
-    data.v2s[i] = a[2][i];
-    data.v3s[i] = a[3][i];
-    data.v0e[i] = a[4][i];
-    data.v1e[i] = a[5][i];
-    data.v2e[i] = a[6][i];
-    data.v3e[i] = a[7][i];
-  }
-  data.ms = ms;
-  return data;
-}
 
 __device__ Singleinterval::Singleinterval(const Scalar &f, const Scalar &s) {
   first = f;
@@ -68,10 +34,6 @@ __device__ interval_pair::interval_pair(const Singleinterval &itv) {
   second.second = itv.second;
 }
 
-// t1+t2<=1?
-// true, when t1 + t2 < 1 / (1 + DBL_EPSILON);
-// false, when  t1 + t2 > 1 / (1 - DBL_EPSILON);
-// unknow, otherwise.
 __device__ bool sum_no_larger_1(const Scalar &num1, const Scalar &num2) {
 #ifdef GPUTI_USE_DOUBLE_PRECISION
   if (num1 + num2 > 1 / (1 - DBL_EPSILON)) {
@@ -290,84 +252,7 @@ __device__ __host__ void get_numerical_error_ee_memory_pool(CCDdata &data_in) {
   data_in.err[2] = zmax * zmax * zmax * vffilter;
   return;
 }
-// 	std::array<Scalar, 3> get_numerical_error(
-// 		const std::vector<std::array<Scalar, 3>> &vertices,
-// 		const bool &check_vf,
-// 		const bool using_minimum_separation)
-// 	{
-// 		Scalar eefilter;
-// 		Scalar vffilter;
-// 		if (!using_minimum_separation)
-// 		{
-// #ifdef GPUTI_USE_DOUBLE_PRECISION
-// 			eefilter = 6.217248937900877e-15;
-// 			vffilter = 6.661338147750939e-15;
-// #else
-// 			eefilter = 3.337861e-06;
-// 			vffilter = 3.576279e-06;
-// #endif
-// 		}
-// 		else // using minimum separation
-// 		{
-// #ifdef GPUTI_USE_DOUBLE_PRECISION
-// 			eefilter = 7.105427357601002e-15;
-// 			vffilter = 7.549516567451064e-15;
-// #else
-// 			eefilter = 3.814698e-06;
-// 			vffilter = 4.053116e-06;
-// #endif
-// 		}
 
-// 		Scalar xmax = fabs(vertices[0][0]);
-// 		Scalar ymax = fabs(vertices[0][1]);
-// 		Scalar zmax = fabs(vertices[0][2]);
-// 		for (int i = 0; i < vertices.size(); i++)
-// 		{
-// 			if (xmax < fabs(vertices[i][0]))
-// 			{
-// 				xmax = fabs(vertices[i][0]);
-// 			}
-// 			if (ymax < fabs(vertices[i][1]))
-// 			{
-// 				ymax = fabs(vertices[i][1]);
-// 			}
-// 			if (zmax < fabs(vertices[i][2]))
-// 			{
-// 				zmax = fabs(vertices[i][2]);
-// 			}
-// 		}
-// 		Scalar delta_x = xmax > 1 ? xmax : 1;
-// 		Scalar delta_y = ymax > 1 ? ymax : 1;
-// 		Scalar delta_z = zmax > 1 ? zmax : 1;
-// 		std::array<Scalar, 3> result;
-// 		if (!check_vf)
-// 		{
-// 			result[0] = delta_x * delta_x * delta_x * eefilter;
-// 			result[1] = delta_y * delta_y * delta_y * eefilter;
-// 			result[2] = delta_z * delta_z * delta_z * eefilter;
-// 		}
-// 		else
-// 		{
-// 			result[0] = delta_x * delta_x * delta_x * vffilter;
-// 			result[1] = delta_y * delta_y * delta_y * vffilter;
-// 			result[2] = delta_z * delta_z * delta_z * vffilter;
-// 		}
-// 		return result;
-// 	}
-// Singleinterval *paras,
-//     const Scalar *a0s,
-//     const Scalar *a1s,
-//     const Scalar *b0s,
-//     const Scalar *b1s,
-//     const Scalar *a0e,
-//     const Scalar *a1e,
-//     const Scalar *b0e,
-//     const Scalar *b1e,
-//     const bool check_vf,
-//     const Scalar *box,
-//     const Scalar ms,
-//     bool &box_in_eps,
-//     Scalar *tolerance)
 __device__ void BoxPrimatives::calculate_tuv(const MP_unit &unit) {
   if (b[0] == 0) { // t0
     t = unit.itv[0].first;
@@ -413,53 +298,6 @@ __device__ Scalar calculate_ee(const CCDdata &data_in,
   return result;
 }
 
-// __device__ bool Origin_in_vf_inclusion_function(const CCDdata &data_in,
-// 												BoxCompute &box,
-// CCDOut &out)
-// {
-// 	BoxPrimatives bp;
-// 	Scalar vmin = SCALAR_LIMIT;
-// 	Scalar vmax = -SCALAR_LIMIT;
-// 	Scalar value;
-// 	for (bp.dim = 0; bp.dim < 3; bp.dim++)
-// 	{
-// 		vmin = SCALAR_LIMIT;
-// 		vmax = -SCALAR_LIMIT;
-// 		for (int i = 0; i < 2; i++)
-// 		{
-// 			for (int j = 0; j < 2; j++)
-// 			{
-// 				for (int k = 0; k < 2; k++)
-// 				{
-// 					bp.b[0] = i;
-// 					bp.b[1] = j;
-// 					bp.b[2] = k; // 100
-// 					bp.calculate_tuv(box);
-// 					value = calculate_vf(data_in, bp);
-// 					vmin = min(vmin, value);
-// 					vmax = max(vmax, value);
-// 				}
-// 			}
-// 		}
-
-// 		// get the min and max in one dimension
-// 		box.true_tol = max(box.true_tol, vmax - vmin); // this is the real
-// tolerance
-
-// 		if (vmin > box.err[bp.dim] || vmax + data_in.ms <
-// -box.err[bp.dim])
-// 		{
-// 			return false;
-// 		}
-
-// 		if (vmin < -box.err[bp.dim] || vmax - data_in.ms >
-// box.err[bp.dim])
-// 		{
-// 			box.box_in = false;
-// 		}
-// 	}
-// 	return true;
-// }
 inline __device__ bool Origin_in_vf_inclusion_function_memory_pool(
     const CCDdata &data_in, MP_unit &unit, Scalar &true_tol, bool &box_in) {
   box_in = true;
@@ -541,239 +379,6 @@ inline __device__ bool Origin_in_ee_inclusion_function_memory_pool(
   return true;
 }
 
-// __device__ void bisect_vf_and_push(BoxCompute &box, const CCDConfig &config,
-// 								   MinHeap &istack, CCDOut
-// &out)
-// {
-// 	interval_pair halves(box.current_item.itv[box.split]); // bisected
-// 	bool inserted;
-// 	if (halves.first.first >= halves.first.second)
-// 	{
-// 		out.overflow_flag = BISECTION_OVERFLOW;
-// 		return;
-// 	}
-// 	if (halves.second.first >= halves.second.second)
-// 	{
-// 		out.overflow_flag = BISECTION_OVERFLOW;
-// 		return;
-// 	}
-// 	if (box.split == 0) // split t interval
-// 	{
-// 		if (config.max_t != 1)
-// 		{
-// 			if (halves.second.first <= config.max_t)
-// 			{
-// 				box.current_item.itv[box.split] = halves.second;
-// 				inserted =
-// 					istack.insertKey(box.current_item.itv,
-// box.current_item.level + 1); 				if (inserted == false)
-// 				{
-// 					out.overflow_flag = HEAP_OVERFLOW;
-// 				}
-// 			}
-
-// 			box.current_item.itv[box.split] = halves.first;
-// 			inserted =
-// 				istack.insertKey(box.current_item.itv,
-// box.current_item.level + 1); 			if (inserted == false)
-// 			{
-// 				out.overflow_flag = HEAP_OVERFLOW;
-// 			}
-// 		}
-// 		else
-// 		{
-// 			box.current_item.itv[box.split] = halves.second;
-// 			inserted =
-// 				istack.insertKey(box.current_item.itv,
-// box.current_item.level + 1); 			if (inserted == false)
-// 			{
-// 				out.overflow_flag = HEAP_OVERFLOW;
-// 			}
-// 			box.current_item.itv[box.split] = halves.first;
-// 			inserted =
-// 				istack.insertKey(box.current_item.itv,
-// box.current_item.level + 1); 			if (inserted == false)
-// 			{
-// 				out.overflow_flag = HEAP_OVERFLOW;
-// 			}
-// 		}
-// 	}
-
-// 	if (box.split == 1) // split u interval
-// 	{
-
-// 		if (sum_no_larger_1(halves.second.first,
-// 							box.current_item.itv[2].first)) // check
-// if u+v<=1
-// 		{
-
-// 			box.current_item.itv[box.split] = halves.second;
-// 			// LINENBR 20
-// 			inserted =
-// 				istack.insertKey(box.current_item.itv,
-// box.current_item.level + 1); 			if (inserted == false)
-// 			{
-// 				out.overflow_flag = HEAP_OVERFLOW;
-// 			}
-// 		}
-
-// 		box.current_item.itv[box.split] = halves.first;
-// 		inserted =
-// 			istack.insertKey(box.current_item.itv, box.current_item.level
-// + 1); 		if (inserted == false)
-// 		{
-// 			out.overflow_flag = HEAP_OVERFLOW;
-// 		}
-// 	}
-// 	if (box.split == 2) // split v interval
-// 	{
-// 		if (sum_no_larger_1(halves.second.first,
-// box.current_item.itv[1].first))
-// 		{
-// 			box.current_item.itv[box.split] = halves.second;
-// 			inserted =
-// 				istack.insertKey(box.current_item.itv,
-// box.current_item.level + 1); 			if (inserted == false)
-// 			{
-// 				out.overflow_flag = HEAP_OVERFLOW;
-// 			}
-// 		}
-
-// 		box.current_item.itv[box.split] = halves.first;
-// 		inserted =
-// 			istack.insertKey(box.current_item.itv, box.current_item.level
-// + 1); 		if (inserted == false)
-// 		{
-// 			out.overflow_flag = HEAP_OVERFLOW;
-// 		}
-// 	}
-// }
-
-// 	__device__ void vertexFaceCCD(const CCDdata &data_in, const CCDConfig
-// &config, 								  CCDOut &out)
-// 	{
-
-// 		MinHeap
-// 			istack; // now when initialized, size is 1 and initialized
-// with [0,1]^3 		compute_face_vertex_tolerance(data_in, config, out); 		BoxCompute
-// box;
-
-// #ifdef CALCULATE_ERROR_BOUND
-// 		get_numerical_error_vf(data_in, box);
-// #else
-// 		box.err[0] = config.err_in[0];
-// 		box.err[1] = config.err_in[1];
-// 		box.err[2] = config.err_in[2];
-// #endif
-
-// 		// LINENBR 2
-// 		int refine = 0;
-// 		bool zero_in;
-// 		bool condition;
-// 		// level < tolerance. only true, we can return when we find one
-// overlaps eps
-// 		// box and smaller than tolerance or eps-box
-
-// 		while (!istack.empty())
-// 		{
-// 			// LINENBR 6
-// 			istack.extractMin(box.current_item); // get the level and the
-// intervals
-// 			// LINENBR 8
-// 			refine++;
-// 			zero_in = Origin_in_vf_inclusion_function(data_in, box,
-// out);
-
-// 			if (!zero_in)
-// 				continue;
-
-// 			// get the width of the box
-// 			box.widths[0] =
-// 				box.current_item.itv[0].second -
-// box.current_item.itv[0].first; 			box.widths[1] = 				box.current_item.itv[1].second
-// - box.current_item.itv[1].first; 			box.widths[2] =
-// 				box.current_item.itv[2].second -
-// box.current_item.itv[2].first;
-
-// 			// LINENBR 15, 16
-// 			// Condition 1, if the tolerance is smaller than the
-// threadshold, return
-// 			// true;
-// 			condition = box.widths[0] <= out.tol[0] && box.widths[1] <=
-// out.tol[1] && box.widths[2] <= out.tol[2]; 			if (condition)
-// 			{
-// 				out.result = true;
-// 				return;
-// 			}
-// 			// Condition 2, the box is inside the epsilon box, have a
-// root, return true; 			condition = box.box_in; 			if (condition)
-// 			{
-// 				out.result = true;
-// 				return;
-// 			}
-
-// 			// Condition 3, real tolerance is smaller than the input
-// tolerance, return
-// 			// true
-// 			condition = box.true_tol <= config.co_domain_tolerance;
-// 			if (condition)
-// 			{
-// 				out.result = true;
-// 				return;
-// 			}
-
-// 			// LINENBR 12
-// 			if (refine > config.max_itr)
-// 			{
-// 				out.overflow_flag = ITERATION_OVERFLOW;
-// 				out.result = true;
-// 				return;
-// 			}
-// 			split_dimension(out, box);
-// 			bisect_vf_and_push(box, config, istack, out);
-// 			if (out.overflow_flag != NO_OVERFLOW)
-// 			{
-// 				out.result = true;
-// 				return;
-// 			}
-// 		}
-// 		out.result = false;
-// 		return;
-// 	}
-
-// __global__ void run_parallel_memory_pool_vf_ccd_all(CCDdata *data,
-// 													CCDConfig
-// *config_in, 													bool *res, int size, 													Scalar *tois)
-// {
-// 	int tx = threadIdx.x + blockIdx.x * blockDim.x;
-// 	if (tx >= size)
-// 		return;
-// 	// copy the input queries to __device__
-// 	CCDdata data_in;
-// 	for (int i = 0; i < 3; i++)
-// 	{
-// 		data_in.v0s[i] = data[tx].v0s[i];
-// 		data_in.v1s[i] = data[tx].v1s[i];
-// 		data_in.v2s[i] = data[tx].v2s[i];
-// 		data_in.v3s[i] = data[tx].v3s[i];
-// 		data_in.v0e[i] = data[tx].v0e[i];
-// 		data_in.v1e[i] = data[tx].v1e[i];
-// 		data_in.v2e[i] = data[tx].v2e[i];
-// 		data_in.v3e[i] = data[tx].v3e[i];
-// 	}
-// 	// copy the configurations to the shared memory
-// 	__shared__ CCDConfig config;
-// 	config.err_in[0] = config_in->err_in[0];
-// 	config.err_in[1] = config_in->err_in[1];
-// 	config.err_in[2] = config_in->err_in[2];
-// 	config.co_domain_tolerance =
-// 		config_in->co_domain_tolerance;  // tolerance of the co-domain
-// 	config.max_t = config_in->max_t;     // the upper bound of the time
-// interval 	config.max_itr = config_in->max_itr; // the maximal nbr of
-// iterations 	CCDOut out; 	vertexFaceCCD(data_in, config, out); 	res[tx] =
-// out.result; 	tois[tx] = 0;
-// }
-
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // the memory pool method
 __global__ void compute_vf_tolerance_memory_pool(CCDdata *data,
@@ -789,10 +394,7 @@ __global__ void compute_vf_tolerance_memory_pool(CCDdata *data,
   compute_face_vertex_tolerance_memory_pool(data[tx], config[0]);
 
   data[tx].nbr_checks = 0;
-  // #ifdef CALCULATE_QUERY_ERROR_BOUND
   get_numerical_error_vf_memory_pool(data[tx]);
-  // #endif
-  // __syncthreads();
 }
 __global__ void compute_ee_tolerance_memory_pool(CCDdata *data,
                                                  CCDConfig *config,
@@ -807,12 +409,9 @@ __global__ void compute_ee_tolerance_memory_pool(CCDdata *data,
   compute_edge_edge_tolerance_memory_pool(data[tx], config[0]);
 
   data[tx].nbr_checks = 0;
-  // #ifdef CALCULATE_QUERY_ERROR_BOUND
   get_numerical_error_ee_memory_pool(data[tx]);
-  // #endif
-  // __syncthreads();
 }
-// the size of units is UNIT_SIZE;
+
 __global__ void initialize_memory_pool(MP_unit *units, int query_size) {
   int tx = threadIdx.x + blockIdx.x * blockDim.x;
   if (tx >= query_size)
@@ -1100,7 +699,6 @@ __global__ void ee_ccd_memory_pool(MP_unit *units, int query_size,
       return;
     }
     // Condition 2, the box is inside the epsilon box, have a root, return true;
-    // condition = units_in.box_in;
     if (box_in && (allow_zero_toi || time_left > 0)) {
       mutex_update_min(config[0].mutex, config[0].toi, time_left);
       // results[box_id] = 1;
@@ -1116,18 +714,13 @@ __global__ void ee_ccd_memory_pool(MP_unit *units, int query_size,
       return;
     }
     const int split = split_dimension_memory_pool(data_in, widths);
-    // MP_unit bisected[2];
-    // int valid_nbr;
 
     const bool sure_in = bisect_ee_memory_pool(units_in, split, config, units);
 
     if (sure_in) // in this case, the interval is too small that overflow
                  // happens. it should be rare to happen
     {
-      // if (time_left < config[0].toi)
-      // 	printf("condition4 %.6f %.6f\n", config[0].toi, time_left);
       mutex_update_min(config[0].mutex, config[0].toi, time_left);
-      // atomicMin(&config[0].toi, time_left);
       // results[box_id] = 1;
       return;
     }
@@ -1142,158 +735,6 @@ __global__ void shift_queue_pointers(CCDConfig *config) {
       config[0].mp_remaining < 0
           ? config[0].mp_end + config[0].unit_size - config[0].mp_start
           : config[0].mp_remaining;
-  // if (2 * config[0].mp_remaining > config[0].unit_size)
-  // {
-  // 	config[0].unit_size *= 2;
-  // 	printf("new unit_size : %llu\n", config[0].unit_size);
-  // }
-}
-
-void run_memory_pool_ccd(
-    const std::vector<std::array<std::array<Scalar, 3>, 8>> &V, const Scalar ms,
-    bool is_edge, std::vector<int> &result_list, int parallel_nbr,
-    double &runtime, Scalar &toi) {
-  int nbr = V.size();
-  printf("nbr %i\n", nbr);
-  result_list.resize(nbr);
-  // host
-  CCDdata *data_list = new CCDdata[nbr];
-  for (int i = 0; i < nbr; i++) {
-    data_list[i] = array_to_ccd(V[i], ms);
-  }
-
-  // int *res = new int[nbr];
-  CCDConfig *config = new CCDConfig[1];
-  // config[0].err_in[0] =
-  // 	-1;                               // the input error bound calculate
-  // from the AABB of the whole mesh
-  config[0].co_domain_tolerance = 1e-6; // tolerance of the co-domain
-  config[0].toi = 1;
-  // config[0].max_t = 1;                  // the upper bound of the time
-  // interval config[0].max_itr = 1e6; // the maximal nbr of iterations
-  // config[0].mp_end = nbr - 1;           // the initialized trunk is from 0 to
-  // nbr-1;
-  config[0].mp_end = nbr;
-  config[0].mp_start = 0;
-  config[0].mp_remaining = nbr;
-  config[0].overflow_flag = 0;
-  // config[0].mp_status = true;           // in the begining, start < end
-  // config[0].not_empty = 0;
-  // device
-  CCDdata *d_data_list;
-  // int *d_res;
-  MP_unit *d_units;
-  CCDConfig *d_config;
-
-  size_t data_size = sizeof(CCDdata) * nbr;
-  printf("data_size %llu\n", data_size);
-
-  // size_t result_size = sizeof(int) * nbr;
-  size_t unit_size = sizeof(MP_unit) * nbr * 8;
-  // int dbg_size=sizeof(Scalar)*8;
-
-  gpuErrchk(cudaMalloc(&d_data_list, data_size));
-  // cudaMalloc(&d_res, result_size);
-  cudaMalloc(&d_units, unit_size);
-  cudaMalloc(&d_config, sizeof(CCDConfig));
-  gpuErrchk(cudaGetLastError());
-
-  gpuErrchk(
-      cudaMemcpy(d_data_list, data_list, data_size, cudaMemcpyHostToDevice));
-  cudaMemcpy(d_config, config, sizeof(CCDConfig), cudaMemcpyHostToDevice);
-  // all the memory copied. now firstly initialize the memory pool
-  // ccd::Timer timer;
-  // timer.start();
-  // initialized as [0, 1]^3, and assign query ids to the intervals
-  initialize_memory_pool<<<nbr / parallel_nbr + 1, parallel_nbr>>>(d_units,
-                                                                   nbr);
-  gpuErrchk(cudaGetLastError());
-  gpuErrchk(cudaDeviceSynchronize());
-  if (is_edge) {
-    compute_ee_tolerance_memory_pool<<<nbr / parallel_nbr + 1, parallel_nbr>>>(
-        d_data_list, d_config, nbr);
-  } else {
-    compute_vf_tolerance_memory_pool<<<nbr / parallel_nbr + 1, parallel_nbr>>>(
-        d_data_list, d_config, nbr);
-  }
-
-  gpuErrchk(cudaDeviceSynchronize());
-
-  printf("MAX_OVERLAP_SIZE: %llu\n", MAX_OVERLAP_SIZE);
-
-  int start = -1;
-  int end;
-  int nbr_per_loop = nbr;
-  ccd::Timer timer;
-  timer.start();
-  while (nbr_per_loop > 0) {
-    if (is_edge) {
-      ee_ccd_memory_pool<<<nbr_per_loop / parallel_nbr + 1, parallel_nbr>>>(
-          d_units, nbr, d_data_list, d_config);
-    } else {
-      vf_ccd_memory_pool<<<nbr_per_loop / parallel_nbr + 1, parallel_nbr>>>(
-          d_units, nbr, d_data_list, d_config);
-    }
-
-    cudaDeviceSynchronize();
-
-    shift_queue_pointers<<<1, 1>>>(d_config);
-    cudaDeviceSynchronize();
-    cudaMemcpy(&nbr_per_loop, &d_config[0].mp_remaining, sizeof(int),
-               cudaMemcpyDeviceToHost);
-    cudaMemcpy(&start, &d_config[0].mp_start, sizeof(int),
-               cudaMemcpyDeviceToHost);
-    cudaMemcpy(&end, &d_config[0].mp_end, sizeof(int), cudaMemcpyDeviceToHost);
-    cudaMemcpy(&toi, &d_config[0].toi, sizeof(Scalar), cudaMemcpyDeviceToHost);
-    std::cout << "toi " << toi << std::endl;
-    printf("Start %i, End %i, Queue size: %i\n", start, end, nbr_per_loop);
-    // break;
-  }
-  timer.stop();
-  runtime = timer.getElapsedTimeInMicroSec();
-  std::cout << "timing temp " << runtime / 1000 << std::endl;
-  // exit(0);
-
-  cudaDeviceSynchronize();
-
-  cudaProfilerStop();
-
-  // cudaMemcpy(res, d_res, result_size, cudaMemcpyDeviceToHost);
-  // cudaMemcpy(tois, d_tois, time_size, cudaMemcpyDeviceToHost);
-  // cudaMemcpy(dbg, d_dbg, dbg_size, cudaMemcpyDeviceToHost);
-
-  cudaMemcpy(&toi, &d_config[0].toi, sizeof(Scalar), cudaMemcpyDeviceToHost);
-
-  int overflow;
-  cudaMemcpy(&overflow, &d_config[0].overflow_flag, sizeof(int),
-             cudaMemcpyDeviceToHost);
-  if (overflow)
-    printf("OVERFLOW!!!!\n");
-
-  cudaFree(d_data_list);
-  // cudaFree(d_res);
-  cudaFree(d_units);
-  cudaFree(d_config);
-  // cudaFree(d_dbg);
-
-  // for (size_t i = 0; i < nbr; i++)
-  // {
-  // 	result_list[i] = res[i];
-  // }
-
-  // std::cout << "dbg info\n"
-  //           << dbg[0] << "," << dbg[1] << "," << dbg[2] << "," << dbg[3] <<
-  //           "," << dbg[4] << "," << dbg[5] << "," << dbg[6] << "," << dbg[7]
-  //           << std::endl;
-  // std::cout << "dbg result " << res[0] << std::endl;
-  // delete[] res;
-  delete[] data_list;
-  // delete[] units;
-  delete[] config;
-  cudaError_t ct = cudaGetLastError();
-  printf("******************\n%s\n************\n", cudaGetErrorString(ct));
-
-  return;
 }
 
 } // namespace ccd
