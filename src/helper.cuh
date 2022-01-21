@@ -38,4 +38,4 @@ void run_ccd(vector<ccdgpu::Aabb> boxes, const Eigen::MatrixXd &vertices_t0,
              const Eigen::MatrixXd &vertices_t1, ccdgpu::Record &r, int N,
              int &nbox, int &parallel, int &devcount,
              vector<pair<int, int>> &overlaps, vector<int> &result_list,
-             ccd::Scalar &toi);
+             bool &use_ms, bool &allow_zero_toi, ccd::Scalar &toi);

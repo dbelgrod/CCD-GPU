@@ -293,7 +293,8 @@ bool is_file_exist(const char *fileName) {
 
 void run_memory_pool_ccd(CCDdata *d_data_list, int tmp_nbr, bool is_edge,
                          std::vector<int> &result_list, int parallel_nbr,
-                         double &run_time, ccd::Scalar &toi) {
+                         bool &use_ms, bool &allow_zero_toi, double &run_time,
+                         ccd::Scalar &toi) {
   int nbr = tmp_nbr;
   cout << "tmp_nbr " << tmp_nbr << endl;
   // int *res = new int[nbr];
@@ -313,8 +314,6 @@ void run_memory_pool_ccd(CCDdata *d_data_list, int tmp_nbr, bool is_edge,
   config[0].unit_size = nbr * 8; // 2.0 * nbr;
   printf("unit_size : %llu\n", config[0].unit_size);
 
-  // device
-  // CCDdata *d_data_list;
   // int *d_res;
   MP_unit *d_units;
   CCDConfig *d_config;
@@ -323,20 +322,12 @@ void run_memory_pool_ccd(CCDdata *d_data_list, int tmp_nbr, bool is_edge,
 
   // size_t result_size = sizeof(int) * nbr;
 
-  // int dbg_size=sizeof(ccd::Scalar)*8;
-
-  // cudaMalloc(&d_data_list, data_size);
   // cudaMalloc(&d_res, result_size);
   cudaMalloc(&d_units, unit_size);
   cudaMalloc(&d_config, sizeof(CCDConfig));
-
-  // cudaMemcpy(d_data_list, data_list, data_size,
-  // cudaMemcpyDeviceToDevice);
   cudaMemcpy(d_config, config, sizeof(CCDConfig), cudaMemcpyHostToDevice);
   gpuErrchk(cudaGetLastError());
-
   ccd::Timer timer;
-  // cudaProfilerStart();
   timer.start();
   printf("nbr: %i, parallel_nbr %i\n", nbr, parallel_nbr);
   initialize_memory_pool<<<nbr / parallel_nbr + 1, parallel_nbr>>>(d_units,
@@ -344,33 +335,29 @@ void run_memory_pool_ccd(CCDdata *d_data_list, int tmp_nbr, bool is_edge,
   cudaDeviceSynchronize();
   if (is_edge) {
     compute_ee_tolerance_memory_pool<<<nbr / parallel_nbr + 1, parallel_nbr>>>(
-        d_data_list, d_config, nbr);
+        d_data_list, d_config, nbr, use_ms);
   } else {
     compute_vf_tolerance_memory_pool<<<nbr / parallel_nbr + 1, parallel_nbr>>>(
-        d_data_list, d_config, nbr);
+        d_data_list, d_config, nbr, use_ms);
   }
   cudaDeviceSynchronize();
   gpuErrchk(cudaGetLastError());
 
   printf("MAX_OVERLAP_SIZE: %llu\n", MAX_OVERLAP_SIZE);
   printf("sizeof(Scalar) %i\n", sizeof(ccd::Scalar));
-  // cudaMemcpy(&toi, &d_config[0].toi, sizeof(ccd::Scalar),
-  //            cudaMemcpyDeviceToHost);
-  // printf("toi init %.6f\n", toi);
 
   int nbr_per_loop = nbr;
   int start;
   int end;
-  //   int inc = 0;
-  // int unit_size = config[0].unit_size;
+
   printf("Queue size t0: %i\n", nbr_per_loop);
   while (nbr_per_loop > 0) {
     if (is_edge) {
       ee_ccd_memory_pool<<<nbr_per_loop / parallel_nbr + 1, parallel_nbr>>>(
-          d_units, nbr, d_data_list, d_config);
+          d_units, nbr, d_data_list, d_config, allow_zero_toi);
     } else {
       vf_ccd_memory_pool<<<nbr_per_loop / parallel_nbr + 1, parallel_nbr>>>(
-          d_units, nbr, d_data_list, d_config);
+          d_units, nbr, d_data_list, d_config, allow_zero_toi);
     }
     cudaDeviceSynchronize();
     gpuErrchk(cudaGetLastError());
@@ -394,7 +381,6 @@ void run_memory_pool_ccd(CCDdata *d_data_list, int tmp_nbr, bool is_edge,
   cudaDeviceSynchronize();
   double tt = timer.getElapsedTimeInMicroSec();
   run_time += tt / 1000.0f;
-  // cudaProfilerStop();
   gpuErrchk(cudaGetLastError());
 
   // cudaMemcpy(res, d_res, result_size, cudaMemcpyDeviceToHost);
@@ -403,26 +389,21 @@ void run_memory_pool_ccd(CCDdata *d_data_list, int tmp_nbr, bool is_edge,
   int overflow;
   cudaMemcpy(&overflow, &d_config[0].overflow_flag, sizeof(int),
              cudaMemcpyDeviceToHost);
-  if (overflow)
+  if (overflow) {
     printf("OVERFLOW!!!!\n");
-  // cudaMemcpy(dbg, d_dbg, dbg_size, cudaMemcpyDeviceToHost);
+    abort();
+  }
 
   gpuErrchk(cudaFree(d_data_list));
-  // if (is_edge) {
-  // cudaFree(d_res);
   gpuErrchk(cudaFree(d_units));
   gpuErrchk(cudaFree(d_config));
-  // }
 
   // for (size_t i = 0; i < nbr; i++) {
   //   result_list[i] = res[i];
   // }
 
   // delete[] res;
-  // delete[] data_list;
-  // delete[] units;
   delete[] config;
-  // delete[] dbg;
   cudaError_t ct = cudaGetLastError();
   printf("******************\n%s\n************\n", cudaGetErrorString(ct));
 
@@ -433,7 +414,7 @@ void run_ccd(const vector<Aabb> boxes, const Eigen::MatrixXd &vertices_t0,
              const Eigen::MatrixXd &vertices_t1, ccdgpu::Record &r, int N,
              int &nbox, int &parallel, int &devcount,
              vector<pair<int, int>> &overlaps, vector<int> &result_list,
-             ccd::Scalar &toi) {
+             bool &use_ms, bool &allow_zero_toi, ccd::Scalar &toi) {
   int2 *d_overlaps;
   int *d_count;
   int threads = 32; // HARDCODING THREADS FOR NOW
@@ -577,14 +558,16 @@ void run_ccd(const vector<Aabb> boxes, const Eigen::MatrixXd &vertices_t0,
     r.Start("run_memory_pool_ccd (narrowphase)", /*gpu=*/true);
     // toi = 1;
     run_memory_pool_ccd(d_vf_data_list, vf_size, /*is_edge_edge=*/false,
-                        result_list, parallel, tmp_tall, toi);
+                        result_list, parallel, use_ms, allow_zero_toi, tmp_tall,
+                        toi);
     cudaDeviceSynchronize();
     gpuErrchk(cudaGetLastError());
     printf("toi after vf %e\n", toi);
     printf("time after vf %.6f\n", tmp_tall);
 
     run_memory_pool_ccd(d_ee_data_list, ee_size, /*is_edge_edge=*/true,
-                        result_list, parallel, tmp_tall, toi);
+                        result_list, parallel, use_ms, allow_zero_toi, tmp_tall,
+                        toi);
     gpuErrchk(cudaGetLastError());
     printf("toi after ee %e\n", toi);
     printf("time after ee %.6f\n", tmp_tall);

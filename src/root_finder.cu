@@ -137,9 +137,10 @@ compute_edge_edge_tolerance_memory_pool(CCDdata &data_in,
   data_in.tol[2] = config.co_domain_tolerance / dl;
 }
 
-__device__ __host__ void get_numerical_error_vf_memory_pool(CCDdata &data_in) {
+__device__ __host__ void get_numerical_error_vf_memory_pool(CCDdata &data_in,
+                                                            bool use_ms) {
   Scalar vffilter;
-  bool use_ms = false;
+  //   bool use_ms = false;
   if (use_ms) {
 #ifdef GPUTI_USE_DOUBLE_PRECISION
     vffilter = 6.661338147750939e-15;
@@ -194,9 +195,10 @@ __device__ __host__ void get_numerical_error_vf_memory_pool(CCDdata &data_in) {
   data_in.err[2] = zmax * zmax * zmax * vffilter;
   return;
 }
-__device__ __host__ void get_numerical_error_ee_memory_pool(CCDdata &data_in) {
+__device__ __host__ void get_numerical_error_ee_memory_pool(CCDdata &data_in,
+                                                            bool use_ms) {
   Scalar vffilter;
-  bool use_ms = false;
+  //   bool use_ms = false;
   if (use_ms) {
 
 #ifdef GPUTI_USE_DOUBLE_PRECISION
@@ -383,7 +385,8 @@ inline __device__ bool Origin_in_ee_inclusion_function_memory_pool(
 // the memory pool method
 __global__ void compute_vf_tolerance_memory_pool(CCDdata *data,
                                                  CCDConfig *config,
-                                                 const int query_size) {
+                                                 const int query_size,
+                                                 bool use_ms) {
   int tx = threadIdx.x + blockIdx.x * blockDim.x;
   if (tx >= query_size)
     return;
@@ -394,11 +397,12 @@ __global__ void compute_vf_tolerance_memory_pool(CCDdata *data,
   compute_face_vertex_tolerance_memory_pool(data[tx], config[0]);
 
   data[tx].nbr_checks = 0;
-  get_numerical_error_vf_memory_pool(data[tx]);
+  get_numerical_error_vf_memory_pool(data[tx], use_ms);
 }
 __global__ void compute_ee_tolerance_memory_pool(CCDdata *data,
                                                  CCDConfig *config,
-                                                 const int query_size) {
+                                                 const int query_size,
+                                                 bool use_ms) {
   int tx = threadIdx.x + blockIdx.x * blockDim.x;
   if (tx >= query_size)
     return;
@@ -409,7 +413,7 @@ __global__ void compute_ee_tolerance_memory_pool(CCDdata *data,
   compute_edge_edge_tolerance_memory_pool(data[tx], config[0]);
 
   data[tx].nbr_checks = 0;
-  get_numerical_error_ee_memory_pool(data[tx]);
+  get_numerical_error_ee_memory_pool(data[tx], use_ms);
 }
 
 __global__ void initialize_memory_pool(MP_unit *units, int query_size) {
@@ -536,12 +540,13 @@ mutex_update_min(cuda::binary_semaphore<cuda::thread_scope_device> &mutex,
 }
 
 __global__ void vf_ccd_memory_pool(MP_unit *units, int query_size,
-                                   CCDdata *data, CCDConfig *config) {
+                                   CCDdata *data, CCDConfig *config,
+                                   bool allow_zero_toi) {
   int tx = threadIdx.x + blockIdx.x * blockDim.x;
   if (tx >= config[0].mp_remaining)
     return;
 
-  bool allow_zero_toi = true;
+  //   bool allow_zero_toi = true;
   int qid = (tx + config[0].mp_start) % config[0].unit_size;
 
   Scalar widths[3];
@@ -612,45 +617,31 @@ __global__ void vf_ccd_memory_pool(MP_unit *units, int query_size,
       return;
     }
     const int split = split_dimension_memory_pool(data_in, widths);
-    // MP_unit bisected[2];
-    // int valid_nbr;
 
     const bool sure_in = bisect_vf_memory_pool(units_in, split, config, units);
 
     if (sure_in) // in this case, the interval is too small that overflow
                  // happens. it should be rare to happen
     {
-      // if (time_left < config[0].toi)
-      // 	printf("condition4 %.6f %.6f\n", config[0].toi, time_left);
       mutex_update_min(config[0].mutex, config[0].toi, time_left);
-      // atomicMin(&config[0].toi, time_left);
       // results[box_id] = 1;
       return;
     }
   }
 }
 __global__ void ee_ccd_memory_pool(MP_unit *units, int query_size,
-                                   CCDdata *data, CCDConfig *config) {
-  bool allow_zero_toi = true;
+                                   CCDdata *data, CCDConfig *config,
+                                   bool allow_zero_toi) {
+  //   bool allow_zero_toi = true;
 
   int tx = threadIdx.x + blockIdx.x * blockDim.x;
   if (tx >= config[0].mp_remaining)
     return;
 
-  // cuda::binary_semaphore<cuda::thread_scope_device> mutex;
-  // mutex.release();
-
-  // if (tx == 0)
-  // 	printf("Running vf_ccd_memory_pool on start %i, end %i, size: %i\n",
-  //    config[0].mp_start,
-  //    config[0].mp_end,
-  //    config[0].mp_remaining);
-
   int qid = (tx + config[0].mp_start) % config[0].unit_size;
 
   Scalar widths[3];
   bool condition;
-  // int split;
 
   MP_unit units_in = units[qid];
   int box_id = units_in.query_id;

@@ -72,8 +72,11 @@ int main(int argc, char **argv) {
   vector<int> result_list;
   ccd::Scalar toi;
 
+  bool use_ms = false;
+  bool allow_zero_toi = true;
+
   run_ccd(boxes, vertices_t0, vertices_t1, r, N, nbox, parallel, devcount,
-          overlaps, result_list, toi);
+          overlaps, result_list, use_ms, allow_zero_toi, toi);
   r.Print();
 
   // cout << "result_list " << result_list.size() << endl;
