@@ -498,7 +498,6 @@ void run_ccd(const vector<Aabb> boxes, const Eigen::MatrixXd &vertices_t0,
   double tavg = 0;
   double tmp_tall = 0;
   toi = 1.0;
-  r.Stop();
 
   while (1) {
 
