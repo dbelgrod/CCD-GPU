@@ -1,8 +1,8 @@
 #pragma once
+#include <ccdgpu/CType.cuh>
+#include <ccdgpu/Type.hpp>
 #include <ccdgpu/record.hpp>
 #include <gpubf/aabb.cuh>
-#include <gputi/CType.cuh>
-#include <gputi/Type.hpp>
 
 // using namespace ccdgpu;
 

@@ -18,7 +18,7 @@
 #include <iostream>
 #include <cuda.h>
 #include <cuda_runtime.h>
-#include <gputi/timer.hpp>
+#include <ccdgpu/timer.hpp>
 
 #include <nlohmann/json.hpp>
 

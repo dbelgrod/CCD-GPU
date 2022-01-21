@@ -6,16 +6,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-// #include <cuda.h>
-// #include <cuda_runtime.h>
+
 #include <iostream>
 
-// #include <gputi/timer.cuh>
-#include <gputi/book.h>
-#include <gputi/io.h>
-// #include <gputi/read_rational_csv.cuh>
-#include <gputi/root_finder.cuh>
-#include <gputi/timer.hpp>
+// #include <gputi/book.h>
+// #include <gputi/io.h>
+#include <ccdgpu/root_finder.cuh>
+#include <ccdgpu/timer.hpp>
 
 #include <ccdgpu/record.hpp>
 #include <gpubf/simulation.cuh>

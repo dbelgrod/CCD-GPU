@@ -25,6 +25,10 @@ else()
   set(CCDGPU_TOPLEVEL_PROJECT OFF)
 endif()
 
+# OPTION(GPUTI_WITH_BENCHMARK          "run benchmark for testing"   OFF)
+OPTION(GPUTI_WITH_DOUBLE_PRECISION   "use double precision calculation" ON)
+
+
 ### Configuration
 set(CCDGPU_EXTERNAL "${CMAKE_CURRENT_SOURCE_DIR}/external")
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
@@ -43,6 +47,9 @@ add_library(${PROJECT_NAME} STATIC ${CCDGPU_SOURCES})
 target_include_directories(${PROJECT_NAME} PUBLIC ${PROJECT_BINARY_DIR}/include)
 # target_link_libraries(CCDGPU PRIVATE warnings::all)
 target_compile_definitions(${PROJECT_NAME} PUBLIC NOMINMAX)
+if(GPUTI_WITH_DOUBLE_PRECISION)
+  target_compile_definitions(${PROJECT_NAME} PUBLIC -DGPUTI_USE_DOUBLE_PRECISION)
+endif()
 
 # Request that CCDGPU be built with -std=c++11
 # As this is a public compile feature anything that links to CCDGPU
@@ -82,7 +89,7 @@ set_property(TARGET ${PROJECT_NAME} PROPERTY CUDA_ARCHITECTURES 70 75 86)
 
 target_link_libraries(${PROJECT_NAME} PUBLIC broadphase)
 
-target_link_libraries(${PROJECT_NAME} PUBLIC gputi)
+# target_link_libraries(${PROJECT_NAME} PUBLIC gputi)
 
 target_link_libraries(${PROJECT_NAME} PUBLIC CPUSWEEP)
 

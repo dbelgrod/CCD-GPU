@@ -16,8 +16,8 @@ if(NOT TARGET broadphase)
     add_subdirectory(${CCDGPU_EXTERNAL}/broadphase EXCLUDE_FROM_ALL)
 endif()
 
-# narrowphase
-if(NOT TARGET gputi)
-    ccdgpu_download_narrowphase()
-    add_subdirectory(${CCDGPU_EXTERNAL}/narrowphase EXCLUDE_FROM_ALL)
-endif()
+# # narrowphase
+# if(NOT TARGET gputi)
+#     ccdgpu_download_narrowphase()
+#     add_subdirectory(${CCDGPU_EXTERNAL}/narrowphase EXCLUDE_FROM_ALL)
+# endif()

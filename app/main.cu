@@ -5,10 +5,10 @@
 #include <gpubf/io.cuh>
 #include <gpubf/util.cuh>
 
+#include <ccdgpu/CType.cuh>
 #include <ccdgpu/helper.cuh>
 #include <ccdgpu/record.hpp>
-#include <gputi/CType.cuh>
-#include <gputi/timer.hpp>
+#include <ccdgpu/timer.hpp>
 
 // using namespace ccdgpu;
 // using namespace ccd;

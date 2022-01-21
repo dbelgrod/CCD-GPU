@@ -29,10 +29,10 @@ function(ccdgpu_download_broadphase)
     )
 endfunction()
 
-## narrowphase
-function(ccdgpu_download_narrowphase)
-    ccdgpu_download_project(narrowphase
-      GIT_REPOSITORY https://github.com/wangbolun300/GPUTI.git ##https://github.com/wangbolun300/GPUTI.git
-      GIT_TAG master #b7c7c9f2b3a2f62a81fe0c064460071794f128a8
-    )
-endfunction()
+# ## narrowphase
+# function(ccdgpu_download_narrowphase)
+#     ccdgpu_download_project(narrowphase
+#       GIT_REPOSITORY https://github.com/wangbolun300/GPUTI.git ##https://github.com/wangbolun300/GPUTI.git
+#       GIT_TAG master #b7c7c9f2b3a2f62a81fe0c064460071794f128a8
+#     )
+# endfunction()
