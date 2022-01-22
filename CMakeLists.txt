@@ -102,7 +102,7 @@ target_link_libraries(${PROJECT_NAME} PUBLIC CPUSWEEP)
 target_link_libraries(${PROJECT_NAME} PUBLIC igl::core)
 
 # JSON
-target_link_libraries(${PROJECT_NAME} PUBLIC nlohmann_json::nlohmann_json)
+target_link_libraries(${PROJECT_NAME} PUBLIC nlohmann::json)
 
 # target_link_libraries(${PROJECT_NAME} PUBLIC ipc_toolkit)
 
