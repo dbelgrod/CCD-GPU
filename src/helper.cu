@@ -382,14 +382,6 @@ void construct_static_collision_candidates(const Eigen::MatrixXd &V,
   int threads = 32; // HARDCODING THREADS FOR NOW
   run_sweep_sharedqueue(boxes.data(), N, nbox, overlaps, d_overlaps, d_count,
                         threads, devcount, /*keep_cpu_overlaps=*/true);
-  threads = 1024;
-  gpuErrchk(cudaGetLastError());
-  printf("Threads now %i\n", threads);
-
-  // copy overlap count
-  int count;
-  gpuErrchk(cudaMemcpy(&count, d_count, sizeof(int), cudaMemcpyDeviceToHost));
-  printf("Count %i\n", count);
   gpuErrchk(cudaGetLastError());
 
   printf("Overlaps size %i\n", overlaps.size());
