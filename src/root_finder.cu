@@ -6,6 +6,8 @@
 
 #include <cuda/semaphore>
 
+using namespace std;
+
 #define gpuErrchk(ans)                                                         \
   { gpuAssert((ans), __FILE__, __LINE__); }
 inline void gpuAssert(cudaError_t code, const char *file, int line,
@@ -722,6 +724,128 @@ __global__ void shift_queue_pointers(CCDConfig *config) {
       config[0].mp_remaining < 0
           ? config[0].mp_end + config[0].unit_size - config[0].mp_start
           : config[0].mp_remaining;
+}
+
+void run_memory_pool_ccd(CCDdata *d_data_list, int tmp_nbr, bool is_edge,
+                         std::vector<int> &result_list, int parallel_nbr,
+                         int max_iter, bool use_ms, bool allow_zero_toi,
+                         ccd::Scalar &toi) {
+  int nbr = tmp_nbr;
+  cout << "tmp_nbr " << tmp_nbr << endl;
+  // int *res = new int[nbr];
+  CCDConfig *config = new CCDConfig[1];
+  // config[0].err_in[0] =
+  //     -1; // the input error bound calculate from the AABB of the whole
+  //     mesh
+  config[0].co_domain_tolerance = 1e-6; // tolerance of the co-domain
+  // config[0].max_t = 1;                  // the upper bound of the time
+
+  // interval
+  config[0].toi = toi;
+  config[0].mp_end = nbr;
+  config[0].mp_start = 0;
+  config[0].mp_remaining = nbr;
+  config[0].overflow_flag = 0;
+  config[0].unit_size = nbr * 8; // 2.0 * nbr;
+  config[0].use_ms = use_ms;
+  config[0].allow_zero_toi = allow_zero_toi;
+  config[0].max_iter = max_iter;
+  printf("unit_size : %llu\n", config[0].unit_size);
+
+  // int *d_res;
+  MP_unit *d_units;
+  CCDConfig *d_config;
+
+  size_t unit_size = sizeof(MP_unit) * config[0].unit_size; // arbitrary #
+
+  // size_t result_size = sizeof(int) * nbr;
+
+  // cudaMalloc(&d_res, result_size);
+  cudaMalloc(&d_units, unit_size);
+  cudaMalloc(&d_config, sizeof(CCDConfig));
+  cudaMemcpy(d_config, config, sizeof(CCDConfig), cudaMemcpyHostToDevice);
+  gpuErrchk(cudaGetLastError());
+  // ccd::Timer timer;
+  // timer.start();
+  printf("nbr: %i, parallel_nbr %i\n", nbr, parallel_nbr);
+  initialize_memory_pool<<<nbr / parallel_nbr + 1, parallel_nbr>>>(d_units,
+                                                                   nbr);
+  cudaDeviceSynchronize();
+  if (is_edge) {
+    compute_ee_tolerance_memory_pool<<<nbr / parallel_nbr + 1, parallel_nbr>>>(
+        d_data_list, d_config, nbr);
+  } else {
+    compute_vf_tolerance_memory_pool<<<nbr / parallel_nbr + 1, parallel_nbr>>>(
+        d_data_list, d_config, nbr);
+  }
+  cudaDeviceSynchronize();
+  gpuErrchk(cudaGetLastError());
+
+  printf("MAX_OVERLAP_SIZE: %llu\n", MAX_OVERLAP_SIZE);
+  printf("sizeof(Scalar) %i\n", sizeof(ccd::Scalar));
+
+  int nbr_per_loop = nbr;
+  int start;
+  int end;
+
+  printf("Queue size t0: %i\n", nbr_per_loop);
+  while (nbr_per_loop > 0) {
+    if (is_edge) {
+      ee_ccd_memory_pool<<<nbr_per_loop / parallel_nbr + 1, parallel_nbr>>>(
+          d_units, nbr, d_data_list, d_config);
+    } else {
+      vf_ccd_memory_pool<<<nbr_per_loop / parallel_nbr + 1, parallel_nbr>>>(
+          d_units, nbr, d_data_list, d_config);
+    }
+    cudaDeviceSynchronize();
+    gpuErrchk(cudaGetLastError());
+    shift_queue_pointers<<<1, 1>>>(d_config);
+    cudaDeviceSynchronize();
+    cudaMemcpy(&nbr_per_loop, &d_config[0].mp_remaining, sizeof(int),
+               cudaMemcpyDeviceToHost);
+    // cudaMemcpy(&start, &d_config[0].mp_start, sizeof(int),
+    //            cudaMemcpyDeviceToHost);
+    // cudaMemcpy(&end, &d_config[0].mp_end, sizeof(int),
+    // cudaMemcpyDeviceToHost); cudaMemcpy(&toi, &d_config[0].toi,
+    // sizeof(ccd::Scalar),
+    //            cudaMemcpyDeviceToHost);
+    // std::cout << "toi " << toi << std::endl;
+    // printf("toi %.4f\n", toi);
+    // printf("Start %i, End %i, Queue size: %i\n", start, end,
+    // nbr_per_loop);
+    gpuErrchk(cudaGetLastError());
+    printf("Queue size: %i\n", nbr_per_loop);
+  }
+  cudaDeviceSynchronize();
+  // double tt = timer.getElapsedTimeInMicroSec();
+  // run_time += tt / 1000.0f;
+  gpuErrchk(cudaGetLastError());
+
+  // cudaMemcpy(res, d_res, result_size, cudaMemcpyDeviceToHost);
+  cudaMemcpy(&toi, &d_config[0].toi, sizeof(ccd::Scalar),
+             cudaMemcpyDeviceToHost);
+  int overflow;
+  cudaMemcpy(&overflow, &d_config[0].overflow_flag, sizeof(int),
+             cudaMemcpyDeviceToHost);
+  if (overflow) {
+    printf("OVERFLOW!!!!\n");
+    abort();
+  }
+
+  gpuErrchk(cudaFree(d_data_list));
+  gpuErrchk(cudaFree(d_units));
+  gpuErrchk(cudaFree(d_config));
+
+  // for (size_t i = 0; i < nbr; i++) {
+  //   result_list[i] = res[i];
+  // }
+
+  // delete[] res;
+  delete[] config;
+  cudaError_t ct = cudaGetLastError();
+  printf("******************\n%s\n************\n", cudaGetErrorString(ct));
+
+  return;
 }
 
 } // namespace ccd
