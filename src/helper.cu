@@ -1,3 +1,4 @@
+#include <ccdgpu/CType.cuh>
 #include <ccdgpu/helper.cuh>
 
 #include <assert.h>
@@ -277,6 +278,7 @@ void run_narrowphase(int2 *d_overlaps, Aabb *d_boxes, int count,
     run_memory_pool_ccd(d_vf_data_list, vf_size, /*is_edge_edge=*/false,
                         result_list, parallel, max_iter, tol, use_ms,
                         allow_zero_toi, toi);
+
     cudaDeviceSynchronize();
     gpuErrchk(cudaGetLastError());
     printf("toi after vf %e\n", toi);
@@ -365,11 +367,12 @@ void run_ccd(const vector<Aabb> boxes, const Eigen::MatrixXd &vertices_t0,
 
 void compute_toi_strategy(const Eigen::MatrixXd &V0, const Eigen::MatrixXd &V1,
                           const Eigen::MatrixXi &E, const Eigen::MatrixXi &F,
-                          ccd::Scalar min_distance, int max_iter, int tolerance,
-                          ccd::Scalar &earliest_toi) {
-
+                          int max_iter, ccd::Scalar min_distance,
+                          ccd::Scalar tolerance, ccd::Scalar &earliest_toi) {
+  printf("Starting compute_toi_strategy\n");
   vector<ccdgpu::Aabb> boxes;
   constructBoxes(V0, V1, E, F, boxes);
+  printf("Finished constructing\n");
   int N = boxes.size();
   int nbox = 0;
   int devcount = 1;
@@ -412,19 +415,22 @@ void compute_toi_strategy(const Eigen::MatrixXd &V0, const Eigen::MatrixXd &V1,
   int Vrows = V0.rows();
   assert(Vrows == V1.rows());
 
-  Record r;
+  json j;
+  Record r(j);
 
   run_narrowphase(d_overlaps, d_boxes, count, d_vertices_t0, d_vertices_t1,
-                  Vrows, threads, max_iter, /*tol=*/tolerance,
+                  Vrows, threads, /*max_iter=*/max_iter, /*tol=*/tolerance,
                   /*ms=*/min_distance,
                   /*use_ms=*/false,
                   /*allow_zero_toi=*/true, result_list, earliest_toi, r);
 
-  if (earliest_toi < 1e-6) {
-    run_narrowphase(d_overlaps, d_boxes, count, d_vertices_t0, d_vertices_t1,
-                    Vrows, threads, max_iter, /*tol=*/tolerance,
-                    /*ms=*/min_distance,
-                    /*use_ms=*/false,
-                    /*allow_zero_toi=*/true, result_list, earliest_toi, r);
-  }
+  // if (earliest_toi < 1e-6) {
+  //   run_narrowphase(d_overlaps, d_boxes, count, d_vertices_t0, d_vertices_t1,
+  //                   Vrows, threads, /*max_iter=*/SCALAR_LIMIT,
+  //                   /*tol=*/tolerance,
+  //                   /*ms=*/0.0,
+  //                   /*use_ms=*/false,
+  //                   /*allow_zero_toi=*/false, result_list, earliest_toi, r);
+  //   earliest_toi *= 0.8;
+  // }
 }

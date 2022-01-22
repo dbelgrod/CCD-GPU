@@ -36,3 +36,8 @@ void run_ccd(const vector<Aabb> boxes, const Eigen::MatrixXd &vertices_t0,
              vector<pair<int, int>> &overlaps, vector<int> &result_list,
              bool &use_ms, bool &allow_zero_toi, ccd::Scalar &min_distance,
              ccd::Scalar &toi);
+
+void compute_toi_strategy(const Eigen::MatrixXd &V0, const Eigen::MatrixXd &V1,
+                          const Eigen::MatrixXi &E, const Eigen::MatrixXi &F,
+                          int max_iter, ccd::Scalar min_distance,
+                          ccd::Scalar tolerance, ccd::Scalar &earliest_toi);

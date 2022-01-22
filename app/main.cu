@@ -38,7 +38,7 @@ int main(int argc, char **argv) {
 
   json j;
   r.Start("constructBoxes", j);
-  constructBoxes(vertices_t0, vertices_t1, faces, edges, boxes);
+  constructBoxes(vertices_t0, vertices_t1, edges, faces, boxes);
   r.Stop();
   int N = boxes.size();
   int nbox = 0;
@@ -76,8 +76,18 @@ int main(int argc, char **argv) {
   bool allow_zero_toi = true;
   ccd::Scalar min_distance = 0;
 
-  run_ccd(boxes, vertices_t0, vertices_t1, r, N, nbox, parallel, devcount,
-          overlaps, result_list, use_ms, allow_zero_toi, min_distance, toi);
+  compute_toi_strategy(vertices_t0, vertices_t1, edges, faces, 1e6, 0.0, 1e-6,
+                       toi);
+
+  // void compute_toi_strategy(const Eigen::MatrixXd &V0,
+  //                           const Eigen::MatrixXd &V1, const Eigen::MatrixXi
+  //                           &E, const Eigen::MatrixXi &F, int max_iter,
+  //                           ccd::Scalar min_distance, ccd::Scalar tolerance,
+  //                           ccd::Scalar &earliest_toi) {
+
+  // run_ccd(boxes, vertices_t0, vertices_t1, r, N, nbox, parallel, devcount,
+  //         overlaps, result_list, use_ms, allow_zero_toi, min_distance,
+  //         toi);
   r.Print();
 
   // cout << "result_list " << result_list.size() << endl;
