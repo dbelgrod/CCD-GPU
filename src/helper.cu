@@ -365,6 +365,36 @@ void run_ccd(const vector<Aabb> boxes, const Eigen::MatrixXd &vertices_t0,
   cudaDeviceSynchronize();
 }
 
+void construct_static_collision_candidates(const Eigen::MatrixXd &V,
+                                           const Eigen::MatrixXi &E,
+                                           const Eigen::MatrixXi &F,
+                                           vector<pair<int, int>> &overlaps,
+                                           vector<ccdgpu::Aabb> &boxes,
+                                           double inflation_radius) {
+  constructBoxes(V, V, E, F, boxes,
+                 static_cast<ccdgpu::Scalar>(inflation_radius));
+  int N = boxes.size();
+  int nbox = 0;
+  int devcount = 1;
+
+  int2 *d_overlaps;
+  int *d_count;
+  int threads = 32; // HARDCODING THREADS FOR NOW
+  run_sweep_sharedqueue(boxes.data(), N, nbox, overlaps, d_overlaps, d_count,
+                        threads, devcount, /*keep_cpu_overlaps=*/true);
+  threads = 1024;
+  gpuErrchk(cudaGetLastError());
+  printf("Threads now %i\n", threads);
+
+  // copy overlap count
+  int count;
+  gpuErrchk(cudaMemcpy(&count, d_count, sizeof(int), cudaMemcpyDeviceToHost));
+  printf("Count %i\n", count);
+  gpuErrchk(cudaGetLastError());
+
+  printf("Overlaps size %i\n", overlaps.size());
+}
+
 ccd::Scalar compute_toi_strategy(const Eigen::MatrixXd &V0,
                                  const Eigen::MatrixXd &V1,
                                  const Eigen::MatrixXi &E,

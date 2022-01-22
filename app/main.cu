@@ -76,12 +76,16 @@ int main(int argc, char **argv) {
   bool allow_zero_toi = true;
   ccd::Scalar min_distance = 0;
 
-  toi = compute_toi_strategy(vertices_t0, vertices_t1, edges, faces, 1e6, 0.0,
-                             1e-6);
+  // toi = compute_toi_strategy(vertices_t0, vertices_t1, edges, faces, 1e6,
+  // 0.0,
+  //                            1e-6);
+  // printf("construct_static_collision_candidates\n");
+  // boxes.clear();
+  // construct_static_collision_candidates(vertices_t0, edges, faces, overlaps,
+  //                                       boxes);
 
-  // run_ccd(boxes, vertices_t0, vertices_t1, r, N, nbox, parallel, devcount,
-  //         overlaps, result_list, use_ms, allow_zero_toi, min_distance,
-  //         toi);
+  run_ccd(boxes, vertices_t0, vertices_t1, r, N, nbox, parallel, devcount,
+          overlaps, result_list, use_ms, allow_zero_toi, min_distance, toi);
   r.Print();
 
   // cout << "result_list " << result_list.size() << endl;

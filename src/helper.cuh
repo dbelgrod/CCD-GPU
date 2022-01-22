@@ -37,6 +37,13 @@ void run_ccd(const vector<Aabb> boxes, const Eigen::MatrixXd &vertices_t0,
              bool &use_ms, bool &allow_zero_toi, ccd::Scalar &min_distance,
              ccd::Scalar &toi);
 
+void construct_static_collision_candidates(const Eigen::MatrixXd &V,
+                                           const Eigen::MatrixXi &E,
+                                           const Eigen::MatrixXi &F,
+                                           vector<pair<int, int>> &overlaps,
+                                           vector<ccdgpu::Aabb> &boxes,
+                                           double inflation_radius = 0);
+
 ccd::Scalar compute_toi_strategy(const Eigen::MatrixXd &V0,
                                  const Eigen::MatrixXd &V1,
                                  const Eigen::MatrixXi &E,
