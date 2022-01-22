@@ -58,7 +58,7 @@ target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_11)
 
 ################################################################################
 # CUDA
-##########
+################################################################################
 # set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O0 -g")
 # set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -g -G")
 # set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xptxas -O3,-v -use_fast_math -maxrregcount 24")
@@ -73,18 +73,24 @@ set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -use_fast_math --expt-relaxed-constexp
 set_target_properties( ${PROJECT_NAME}
                        PROPERTIES CUDA_SEPARABLE_COMPILATION ON
                       )
-                      
+
 # Nvidia RTX8000 -> compute_75
 # Nvidia V100 -> compute_70
-# Nvidia 1080/1080Ti -> compute_61       
-# Nvidia 3080Ti -> compute_86               
+# Nvidia 1080/1080Ti -> compute_61
+# Nvidia 3080Ti -> compute_86
 set_property(TARGET ${PROJECT_NAME} PROPERTY CUDA_ARCHITECTURES 70 75 86)
+
+target_compile_options(${PROJECT_NAME} PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:
+                       --generate-line-info
+                       --use_fast_math
+                       --relocatable-device-code=true
+                       # --ptxas-options=-v
+                       # --maxrregcount=7
+                       >)
 
 ################################################################################
 # Required Libraries
 ################################################################################
-
-###############################################################################
 
 target_link_libraries(${PROJECT_NAME} PUBLIC broadphase)
 
@@ -104,33 +110,25 @@ target_link_libraries(${PROJECT_NAME} PUBLIC nlohmann_json::nlohmann_json)
 # Binary
 ################################################################################
 
+if(CCDGPU_TOPLEVEL_PROJECT)
+    # executable
+    add_executable(ccdgpu_bin app/main.cu)
+    set_target_properties(ccdgpu_bin PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
+    set_property(TARGET ccdgpu_bin PROPERTY CUDA_ARCHITECTURES 70 75 86)
+    target_link_libraries(ccdgpu_bin PRIVATE ${PROJECT_NAME})
 
-# # executable
-add_executable(ccdgpu_bin app/main.cu)
-set_target_properties(ccdgpu_bin PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
-set_property(TARGET ccdgpu_bin PROPERTY CUDA_ARCHITECTURES 70 75 86)
-target_link_libraries(ccdgpu_bin PRIVATE ${PROJECT_NAME})
-                  
-                  
-if(APPLE)
-# We need to add the default path to the driver (libcuda.dylib) as an rpath,
-# so that the static cuda runtime can find it at runtime.
-set_property(TARGET ccdgpu_bin PROPERTY BUILD_RPATH ${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES})
+
+    if(APPLE)
+        # We need to add the default path to the driver (libcuda.dylib) as an rpath,
+        # so that the static cuda runtime can find it at runtime.
+        set_property(TARGET ccdgpu_bin PROPERTY BUILD_RPATH ${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES})
+    endif()
+    target_compile_options(
+        ccdgpu_bin PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:
+        --generate-line-info
+        --use_fast_math
+        --relocatable-device-code=true
+        --ptxas-options=-v
+        # --maxrregcount=7
+        >)
 endif()
-
-target_compile_options(${PROJECT_NAME} PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:
-                       --generate-line-info
-                       --use_fast_math
-                       --relocatable-device-code=true
-                      #  --ptxas-options=-v
-                      # --maxrregcount=7
-                       >)  
-
-
-target_compile_options(ccdgpu_bin PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:
-                       --generate-line-info
-                       --use_fast_math
-                       --relocatable-device-code=true
-                       --ptxas-options=-v
-                      # --maxrregcount=7
-                       >)  
