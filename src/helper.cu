@@ -365,11 +365,13 @@ void run_ccd(const vector<Aabb> boxes, const Eigen::MatrixXd &vertices_t0,
   cudaDeviceSynchronize();
 }
 
-void compute_toi_strategy(const Eigen::MatrixXd &V0, const Eigen::MatrixXd &V1,
-                          const Eigen::MatrixXi &E, const Eigen::MatrixXi &F,
-                          int max_iter, ccd::Scalar min_distance,
-                          ccd::Scalar tolerance, ccd::Scalar &earliest_toi) {
-  printf("Starting compute_toi_strategy\n");
+ccd::Scalar compute_toi_strategy(const Eigen::MatrixXd &V0,
+                                 const Eigen::MatrixXd &V1,
+                                 const Eigen::MatrixXi &E,
+                                 const Eigen::MatrixXi &F, int max_iter,
+                                 ccd::Scalar min_distance,
+                                 ccd::Scalar tolerance) {
+  ccd::Scalar &earliest_toi;
   vector<ccdgpu::Aabb> boxes;
   constructBoxes(V0, V1, E, F, boxes);
   printf("Finished constructing\n");
@@ -424,13 +426,14 @@ void compute_toi_strategy(const Eigen::MatrixXd &V0, const Eigen::MatrixXd &V1,
                   /*use_ms=*/false,
                   /*allow_zero_toi=*/true, result_list, earliest_toi, r);
 
-  // if (earliest_toi < 1e-6) {
-  //   run_narrowphase(d_overlaps, d_boxes, count, d_vertices_t0, d_vertices_t1,
-  //                   Vrows, threads, /*max_iter=*/SCALAR_LIMIT,
-  //                   /*tol=*/tolerance,
-  //                   /*ms=*/0.0,
-  //                   /*use_ms=*/false,
-  //                   /*allow_zero_toi=*/false, result_list, earliest_toi, r);
-  //   earliest_toi *= 0.8;
-  // }
+  if (earliest_toi < 1e-6) {
+    run_narrowphase(d_overlaps, d_boxes, count, d_vertices_t0, d_vertices_t1,
+                    Vrows, threads, /*max_iter=*/-1,
+                    /*tol=*/tolerance,
+                    /*ms=*/0.0,
+                    /*use_ms=*/false,
+                    /*allow_zero_toi=*/false, result_list, earliest_toi, r);
+    earliest_toi *= 0.8;
+  }
+  return earliest_toi;
 }
