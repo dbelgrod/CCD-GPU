@@ -182,9 +182,9 @@ bool is_file_exist(const char *fileName) {
 
 void run_narrowphase(int2 *d_overlaps, Aabb *d_boxes, int count,
                      ccd::Scalar *d_vertices_t0, ccd::Scalar *d_vertices_t1,
-                     int Vrows, int &threads, int &max_iter, ccd::Scalar ms,
-                     bool use_ms, bool allow_zero_toi, vector<int> &result_list,
-                     ccd::Scalar &toi, Record &r) {
+                     int Vrows, int threads, int max_iter, ccd::Scalar tol,
+                     ccd::Scalar ms, bool use_ms, bool allow_zero_toi,
+                     vector<int> &result_list, ccd::Scalar &toi, Record &r) {
 
   toi = 1.0;
 
@@ -275,16 +275,16 @@ void run_narrowphase(int2 *d_overlaps, Aabb *d_boxes, int count,
             /*gpu=*/true);
     // toi = 1;
     run_memory_pool_ccd(d_vf_data_list, vf_size, /*is_edge_edge=*/false,
-                        result_list, parallel, max_iter, use_ms, allow_zero_toi,
-                        toi);
+                        result_list, parallel, max_iter, tol, use_ms,
+                        allow_zero_toi, toi);
     cudaDeviceSynchronize();
     gpuErrchk(cudaGetLastError());
     printf("toi after vf %e\n", toi);
     // printf("time after vf %.6f\n", tmp_tall);
 
     run_memory_pool_ccd(d_ee_data_list, ee_size, /*is_edge_edge=*/true,
-                        result_list, parallel, max_iter, use_ms, allow_zero_toi,
-                        toi);
+                        result_list, parallel, max_iter, tol, use_ms,
+                        allow_zero_toi, toi);
     gpuErrchk(cudaGetLastError());
     printf("toi after ee %e\n", toi);
     // printf("time after ee %.6f\n", tmp_tall);
@@ -345,10 +345,11 @@ void run_ccd(const vector<Aabb> boxes, const Eigen::MatrixXd &vertices_t0,
   assert(Vrows == vertices_t1.rows());
 
   int max_iter = 1e6;
+  ccd::Scalar tolerance = 1e-6;
 
   run_narrowphase(d_overlaps, d_boxes, count, d_vertices_t0, d_vertices_t1,
-                  Vrows, threads, max_iter, ms, use_ms, allow_zero_toi,
-                  result_list, toi, r);
+                  Vrows, threads, max_iter, tolerance, ms, use_ms,
+                  allow_zero_toi, result_list, toi, r);
 
   gpuErrchk(cudaGetLastError());
 
@@ -364,7 +365,7 @@ void run_ccd(const vector<Aabb> boxes, const Eigen::MatrixXd &vertices_t0,
 
 void compute_toi_strategy(const Eigen::MatrixXd &V0, const Eigen::MatrixXd &V1,
                           const Eigen::MatrixXi &E, const Eigen::MatrixXi &F,
-                          ccd::Scalar min_distance, int max_iter,
+                          ccd::Scalar min_distance, int max_iter, int tolerance,
                           ccd::Scalar &earliest_toi) {
 
   vector<ccdgpu::Aabb> boxes;
@@ -414,7 +415,16 @@ void compute_toi_strategy(const Eigen::MatrixXd &V0, const Eigen::MatrixXd &V1,
   Record r;
 
   run_narrowphase(d_overlaps, d_boxes, count, d_vertices_t0, d_vertices_t1,
-                  Vrows, threads, max_iter, /*ms=*/min_distance,
+                  Vrows, threads, max_iter, /*tol=*/tolerance,
+                  /*ms=*/min_distance,
                   /*use_ms=*/false,
                   /*allow_zero_toi=*/true, result_list, earliest_toi, r);
+
+  if (earliest_toi < 1e-6) {
+    run_narrowphase(d_overlaps, d_boxes, count, d_vertices_t0, d_vertices_t1,
+                    Vrows, threads, max_iter, /*tol=*/tolerance,
+                    /*ms=*/min_distance,
+                    /*use_ms=*/false,
+                    /*allow_zero_toi=*/true, result_list, earliest_toi, r);
+  }
 }

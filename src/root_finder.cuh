@@ -5,14 +5,8 @@
 #include <iostream>
 #include <vector>
 
-
 // #include <gputi/book.h>
 namespace ccd {
-void run_memory_pool_ccd(
-    const std::vector<std::array<std::array<Scalar, 3>, 8>> &V, const Scalar ms,
-    bool is_edge, std::vector<int> &result_list, int parallel_nbr,
-    double &runtime, Scalar &toi);
-
 // can be removed once device-only run_memory_pool_ccd copied over
 __global__ void initialize_memory_pool(MP_unit *units, int query_size);
 __global__ void compute_vf_tolerance_memory_pool(CCDdata *data,
@@ -34,8 +28,8 @@ __global__ void compute_ee_tolerance_memory_pool(CCDdata *data,
 
 void run_memory_pool_ccd(CCDdata *d_data_list, int tmp_nbr, bool is_edge,
                          std::vector<int> &result_list, int parallel_nbr,
-                         int max_iter, bool use_ms, bool allow_zero_toi,
-                         ccd::Scalar &toi);
+                         int max_iter, ccd::Scalar tol, bool use_ms,
+                         bool allow_zero_toi, ccd::Scalar &toi);
 
 // get the filter of ccd. the inputs are the vertices of the bounding box of
 // the simulation scene this function is directly copied from

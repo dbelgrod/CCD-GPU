@@ -728,8 +728,8 @@ __global__ void shift_queue_pointers(CCDConfig *config) {
 
 void run_memory_pool_ccd(CCDdata *d_data_list, int tmp_nbr, bool is_edge,
                          std::vector<int> &result_list, int parallel_nbr,
-                         int max_iter, bool use_ms, bool allow_zero_toi,
-                         ccd::Scalar &toi) {
+                         int max_iter, ccd::Scalar tol, bool use_ms,
+                         bool allow_zero_toi, ccd::Scalar &toi) {
   int nbr = tmp_nbr;
   cout << "tmp_nbr " << tmp_nbr << endl;
   // int *res = new int[nbr];
@@ -737,7 +737,7 @@ void run_memory_pool_ccd(CCDdata *d_data_list, int tmp_nbr, bool is_edge,
   // config[0].err_in[0] =
   //     -1; // the input error bound calculate from the AABB of the whole
   //     mesh
-  config[0].co_domain_tolerance = 1e-6; // tolerance of the co-domain
+  config[0].co_domain_tolerance = tol; // tolerance of the co-domain
   // config[0].max_t = 1;                  // the upper bound of the time
 
   // interval
