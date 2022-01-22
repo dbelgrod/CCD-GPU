@@ -74,9 +74,10 @@ int main(int argc, char **argv) {
 
   bool use_ms = false;
   bool allow_zero_toi = true;
+  ccd::Scalar min_distance = 0;
 
   run_ccd(boxes, vertices_t0, vertices_t1, r, N, nbox, parallel, devcount,
-          overlaps, result_list, use_ms, allow_zero_toi, toi);
+          overlaps, result_list, use_ms, allow_zero_toi, min_distance, toi);
   r.Print();
 
   // cout << "result_list " << result_list.size() << endl;

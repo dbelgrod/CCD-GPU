@@ -28,14 +28,11 @@ __global__ void addData(const int2 *const overlaps,
                         // ccd::Scalar3 *queries);
                         ccd::CCDdata *data);
 
-void addData(const ccdgpu::Aabb &a, const ccdgpu::Aabb &b,
-             const Eigen::MatrixXd &V0, const Eigen::MatrixXd &V1,
-             vector<array<array<ccd::Scalar, 3>, 8>> &queries);
-
 bool is_file_exist(const char *fileName);
 
-void run_ccd(vector<ccdgpu::Aabb> boxes, const Eigen::MatrixXd &vertices_t0,
+void run_ccd(const vector<Aabb> boxes, const Eigen::MatrixXd &vertices_t0,
              const Eigen::MatrixXd &vertices_t1, ccdgpu::Record &r, int N,
              int &nbox, int &parallel, int &devcount,
              vector<pair<int, int>> &overlaps, vector<int> &result_list,
-             bool &use_ms, bool &allow_zero_toi, ccd::Scalar &toi);
+             bool &use_ms, bool &allow_zero_toi, ccd::Scalar &min_distance,
+             ccd::Scalar &toi);

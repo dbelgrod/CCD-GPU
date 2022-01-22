@@ -71,8 +71,9 @@ public:
   long unit_size;
   Scalar toi;
   cuda::binary_semaphore<cuda::thread_scope_device> mutex;
-  // int mp_status = 1; // when true, it means that no overflow happens
-  // int not_empty;
+  bool use_ms;
+  bool allow_zero_toi;
+  int max_iter;
   int overflow_flag;
 };
 

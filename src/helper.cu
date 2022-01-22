@@ -13,6 +13,7 @@
 // #include <gputi/io.h>
 #include <ccdgpu/root_finder.cuh>
 #include <ccdgpu/timer.hpp>
+#include <gpubf/io.cuh>
 
 #include <ccdgpu/record.hpp>
 #include <gpubf/simulation.cuh>
@@ -50,14 +51,12 @@ __global__ void addData(const int2 *const overlaps,
                         const ccdgpu::Aabb *const boxes,
                         const ccd::Scalar *const V0,
                         const ccd::Scalar *const V1, int Vrows, int N,
-                        ccd::CCDdata *data) {
+                        ccd::Scalar ms, ccd::CCDdata *data) {
   int tid = threadIdx.x + blockIdx.x * blockDim.x;
   if (tid >= N)
     return;
 
-  // #ifndef NO_CHECK_MS
-  data[tid].ms = 0.0;
-  // #endif
+  data[tid].ms = ms;
 
   // printf("vf_count %i, ee_count %i", *vf_count, *ee_count);
 
@@ -176,125 +175,14 @@ __global__ void addData(const int2 *const overlaps,
     assert(0);
 }
 
-void addData(const ccdgpu::Aabb &a, const ccdgpu::Aabb &b,
-             const Eigen::MatrixXd &V0, const Eigen::MatrixXd &V1,
-             vector<array<array<ccd::Scalar, 3>, 8>> &queries) {
-  // auto is_vertex = [&](Aabb x){return x.vertexIds.y < 0 ;};
-  // auto is_edge = [&](Aabb x){return !is_vertex(x) && x.vertexIds.z < 0
-  // ;}; auto is_face = [&](Aabb x){return !is_vertex(x) && !is_edge(x);};
-
-  // auto is_face = [&](Aabb x){return x.vertexIds.z >= 0;};
-  // auto is_edge = [&](Aabb x){return x.vertexIds.z < 0 && x.vertexIds.y >=
-  // 0
-  // ;}; auto is_vertex = [&](Aabb x){return x.vertexIds.z < 0  &&
-  // x.vertexIds.y < 0;};
-
-  if (is_vertex(a) && is_face(b)) {
-    auto avids = a.vertexIds;
-    auto bvids = b.vertexIds;
-    // Point at t=0s
-    auto vertex_start = V0.cast<ccd::Scalar>().row(avids.x);
-    // // Triangle at t = 0
-    auto face_vertex0_start = V0.cast<ccd::Scalar>().row(bvids.x);
-    auto face_vertex1_start = V0.cast<ccd::Scalar>().row(bvids.y);
-    auto face_vertex2_start = V0.cast<ccd::Scalar>().row(bvids.z);
-    // // Point at t=1
-    auto vertex_end = V1.cast<ccd::Scalar>().row(avids.x);
-    // // Triangle at t = 1
-    auto face_vertex0_end = V1.cast<ccd::Scalar>().row(bvids.x);
-    auto face_vertex1_end = V1.cast<ccd::Scalar>().row(bvids.y);
-    auto face_vertex2_end = V1.cast<ccd::Scalar>().row(bvids.z);
-
-    array<array<ccd::Scalar, 3>, 8> tmp;
-    tmp[0] = Vec3Conv(vertex_start);
-    tmp[1] = Vec3Conv(face_vertex0_start);
-    tmp[2] = Vec3Conv(face_vertex1_start);
-    tmp[3] = Vec3Conv(face_vertex2_start);
-    tmp[4] = Vec3Conv(vertex_end);
-    tmp[5] = Vec3Conv(face_vertex0_end);
-    tmp[6] = Vec3Conv(face_vertex1_end);
-    tmp[7] = Vec3Conv(face_vertex2_end);
-    queries.emplace_back(tmp);
-  } else if (is_face(a) && is_vertex(b))
-    return addData(b, a, V0, V1, queries);
-  else if (is_edge(a) && is_edge(b)) {
-    auto avids = a.vertexIds;
-    auto bvids = b.vertexIds;
-    //     // Edge 1 at t=0
-    auto edge0_vertex0_start = V0.cast<ccd::Scalar>().row(avids.x);
-    auto edge0_vertex1_start = V0.cast<ccd::Scalar>().row(avids.y);
-    // // Edge 2 at t=0
-    auto edge1_vertex0_start = V0.cast<ccd::Scalar>().row(bvids.x);
-    auto edge1_vertex1_start = V0.cast<ccd::Scalar>().row(bvids.y);
-    // // Edge 1 at t=1
-    auto edge0_vertex0_end = V1.cast<ccd::Scalar>().row(avids.x);
-    auto edge0_vertex1_end = V1.cast<ccd::Scalar>().row(avids.y);
-    // // Edge 2 at t=1
-    auto edge1_vertex0_end = V1.cast<ccd::Scalar>().row(bvids.x);
-    auto edge1_vertex1_end = V1.cast<ccd::Scalar>().row(bvids.y);
-
-    // queries.emplace_back(Vec3Conv(edge0_vertex0_start));
-    array<array<ccd::Scalar, 3>, 8> tmp;
-    tmp[0] = Vec3Conv(edge0_vertex0_start);
-    tmp[1] = Vec3Conv(edge0_vertex1_start);
-    tmp[2] = Vec3Conv(edge1_vertex0_start);
-    tmp[3] = Vec3Conv(edge1_vertex1_start);
-    tmp[4] = Vec3Conv(edge0_vertex0_end);
-    tmp[5] = Vec3Conv(edge0_vertex1_end);
-    tmp[6] = Vec3Conv(edge1_vertex0_end);
-    tmp[7] = Vec3Conv(edge1_vertex1_end);
-    queries.emplace_back(tmp);
-  } else
-    abort();
-}
-
 bool is_file_exist(const char *fileName) {
   ifstream infile(fileName);
   return infile.good();
 }
 
-// __global__ void array_to_ccd(const ccd::Scalar3 *const a, int tmp_nbr,
-//                              CCDdata *data) {
-//   int tid = threadIdx.x + blockIdx.x * blockDim.x;
-//   if (tid >= tmp_nbr)
-//     return;
-
-// #ifndef NO_CHECK_MS
-//   data[tid].ms = MINIMUM_SEPARATION_BENCHMARK;
-// #endif
-
-//   data[tid].v0s[0] = a[8 * tid + 0].x;
-//   data[tid].v1s[0] = a[8 * tid + 1].x;
-//   data[tid].v2s[0] = a[8 * tid + 2].x;
-//   data[tid].v3s[0] = a[8 * tid + 3].x;
-//   data[tid].v0e[0] = a[8 * tid + 4].x;
-//   data[tid].v1e[0] = a[8 * tid + 5].x;
-//   data[tid].v2e[0] = a[8 * tid + 6].x;
-//   data[tid].v3e[0] = a[8 * tid + 7].x;
-
-//   data[tid].v0s[1] = a[8 * tid + 0].y;
-//   data[tid].v1s[1] = a[8 * tid + 1].y;
-//   data[tid].v2s[1] = a[8 * tid + 2].y;
-//   data[tid].v3s[1] = a[8 * tid + 3].y;
-//   data[tid].v0e[1] = a[8 * tid + 4].y;
-//   data[tid].v1e[1] = a[8 * tid + 5].y;
-//   data[tid].v2e[1] = a[8 * tid + 6].y;
-//   data[tid].v3e[1] = a[8 * tid + 7].y;
-
-//   data[tid].v0s[2] = a[8 * tid + 0].z;
-//   data[tid].v1s[2] = a[8 * tid + 1].z;
-//   data[tid].v2s[2] = a[8 * tid + 2].z;
-//   data[tid].v3s[2] = a[8 * tid + 3].z;
-//   data[tid].v0e[2] = a[8 * tid + 4].z;
-//   data[tid].v1e[2] = a[8 * tid + 5].z;
-//   data[tid].v2e[2] = a[8 * tid + 6].z;
-//   data[tid].v3e[2] = a[8 * tid + 7].z;
-// }
-
 void run_memory_pool_ccd(CCDdata *d_data_list, int tmp_nbr, bool is_edge,
                          std::vector<int> &result_list, int parallel_nbr,
-                         bool &use_ms, bool &allow_zero_toi, double &run_time,
-                         ccd::Scalar &toi) {
+                         bool use_ms, bool allow_zero_toi, ccd::Scalar &toi) {
   int nbr = tmp_nbr;
   cout << "tmp_nbr " << tmp_nbr << endl;
   // int *res = new int[nbr];
@@ -312,6 +200,9 @@ void run_memory_pool_ccd(CCDdata *d_data_list, int tmp_nbr, bool is_edge,
   config[0].mp_remaining = nbr;
   config[0].overflow_flag = 0;
   config[0].unit_size = nbr * 8; // 2.0 * nbr;
+  config[0].use_ms = use_ms;
+  config[0].allow_zero_toi = allow_zero_toi;
+  config[0].max_iter = 1e6;
   printf("unit_size : %llu\n", config[0].unit_size);
 
   // int *d_res;
@@ -327,18 +218,18 @@ void run_memory_pool_ccd(CCDdata *d_data_list, int tmp_nbr, bool is_edge,
   cudaMalloc(&d_config, sizeof(CCDConfig));
   cudaMemcpy(d_config, config, sizeof(CCDConfig), cudaMemcpyHostToDevice);
   gpuErrchk(cudaGetLastError());
-  ccd::Timer timer;
-  timer.start();
+  // ccd::Timer timer;
+  // timer.start();
   printf("nbr: %i, parallel_nbr %i\n", nbr, parallel_nbr);
   initialize_memory_pool<<<nbr / parallel_nbr + 1, parallel_nbr>>>(d_units,
                                                                    nbr);
   cudaDeviceSynchronize();
   if (is_edge) {
     compute_ee_tolerance_memory_pool<<<nbr / parallel_nbr + 1, parallel_nbr>>>(
-        d_data_list, d_config, nbr, use_ms);
+        d_data_list, d_config, nbr);
   } else {
     compute_vf_tolerance_memory_pool<<<nbr / parallel_nbr + 1, parallel_nbr>>>(
-        d_data_list, d_config, nbr, use_ms);
+        d_data_list, d_config, nbr);
   }
   cudaDeviceSynchronize();
   gpuErrchk(cudaGetLastError());
@@ -354,10 +245,10 @@ void run_memory_pool_ccd(CCDdata *d_data_list, int tmp_nbr, bool is_edge,
   while (nbr_per_loop > 0) {
     if (is_edge) {
       ee_ccd_memory_pool<<<nbr_per_loop / parallel_nbr + 1, parallel_nbr>>>(
-          d_units, nbr, d_data_list, d_config, allow_zero_toi);
+          d_units, nbr, d_data_list, d_config);
     } else {
       vf_ccd_memory_pool<<<nbr_per_loop / parallel_nbr + 1, parallel_nbr>>>(
-          d_units, nbr, d_data_list, d_config, allow_zero_toi);
+          d_units, nbr, d_data_list, d_config);
     }
     cudaDeviceSynchronize();
     gpuErrchk(cudaGetLastError());
@@ -379,8 +270,8 @@ void run_memory_pool_ccd(CCDdata *d_data_list, int tmp_nbr, bool is_edge,
     printf("Queue size: %i\n", nbr_per_loop);
   }
   cudaDeviceSynchronize();
-  double tt = timer.getElapsedTimeInMicroSec();
-  run_time += tt / 1000.0f;
+  // double tt = timer.getElapsedTimeInMicroSec();
+  // run_time += tt / 1000.0f;
   gpuErrchk(cudaGetLastError());
 
   // cudaMemcpy(res, d_res, result_size, cudaMemcpyDeviceToHost);
@@ -410,62 +301,18 @@ void run_memory_pool_ccd(CCDdata *d_data_list, int tmp_nbr, bool is_edge,
   return;
 }
 
-void run_ccd(const vector<Aabb> boxes, const Eigen::MatrixXd &vertices_t0,
-             const Eigen::MatrixXd &vertices_t1, ccdgpu::Record &r, int N,
-             int &nbox, int &parallel, int &devcount,
-             vector<pair<int, int>> &overlaps, vector<int> &result_list,
-             bool &use_ms, bool &allow_zero_toi, ccd::Scalar &toi) {
-  int2 *d_overlaps;
-  int *d_count;
-  int threads = 32; // HARDCODING THREADS FOR NOW
-  r.Start("run_sweep_sharedqueue (broadphase)", /*gpu=*/true);
-  run_sweep_sharedqueue(boxes.data(), N, nbox, overlaps, d_overlaps, d_count,
-                        threads, devcount);
-  r.Stop();
-  threads = 1024;
-  gpuErrchk(cudaGetLastError());
-  printf("Threads now %i\n", threads);
+void run_narrowphase(int2 *d_overlaps, Aabb *d_boxes, int count,
+                     ccd::Scalar *d_vertices_t0, ccd::Scalar *d_vertices_t1,
+                     int Vrows, int &threads, ccd::Scalar ms, bool use_ms,
+                     bool allow_zero_toi, vector<int> &result_list,
+                     ccd::Scalar &toi, Record &r) {
 
-  r.Start("copyBoxesToGpu", /*gpu=*/true);
-  // copy overlap count
-  int count;
-  gpuErrchk(cudaMemcpy(&count, d_count, sizeof(int), cudaMemcpyDeviceToHost));
-  printf("Count %i\n", count);
-  gpuErrchk(cudaGetLastError());
-
-  // Allocate boxes to GPU
-  Aabb *d_boxes;
-  cudaMalloc((void **)&d_boxes, sizeof(Aabb) * N);
-  cudaMemcpy(d_boxes, boxes.data(), sizeof(Aabb) * N, cudaMemcpyHostToDevice);
-  gpuErrchk(cudaGetLastError());
-  r.Stop();
-
-  // ccd::Scalar3 *d_queries;
-  // size_t queries_size = sizeof(ccd::Scalar3) * 8 * count;
-  // cout << "queries size: " << queries_size << endl;
-  // cudaMalloc((void **)&d_queries, queries_size);
-  // gpuErrchk(cudaGetLastError());
-
-  r.Start("copyVerticesToGpu", /*gpu=*/true);
-  printf("Copying vertices\n");
-  ccd::Scalar *d_vertices_t0;
-  ccd::Scalar *d_vertices_t1;
-  cudaMalloc((void **)&d_vertices_t0, sizeof(ccd::Scalar) * vertices_t0.size());
-  cudaMalloc((void **)&d_vertices_t1, sizeof(ccd::Scalar) * vertices_t1.size());
-  cudaMemcpy(d_vertices_t0, vertices_t0.data(),
-             sizeof(ccd::Scalar) * vertices_t0.size(), cudaMemcpyHostToDevice);
-  cudaMemcpy(d_vertices_t1, vertices_t1.data(),
-             sizeof(ccd::Scalar) * vertices_t1.size(), cudaMemcpyHostToDevice);
-  r.Stop();
-  int Vrows = vertices_t0.rows();
-  assert(Vrows == vertices_t1.rows());
+  toi = 1.0;
 
   int *d_vf_count;
   int *d_ee_count;
   cudaMalloc((void **)&d_vf_count, sizeof(int));
   cudaMalloc((void **)&d_ee_count, sizeof(int));
-
-  gpuErrchk(cudaGetLastError());
 
   int2 *d_vf_overlaps;
   int2 *d_ee_overlaps;
@@ -473,9 +320,8 @@ void run_ccd(const vector<Aabb> boxes, const Eigen::MatrixXd &vertices_t0,
   int start_id = 0;
   int size = count;
 
-  double tavg = 0;
-  double tmp_tall = 0;
-  toi = 1.0;
+  // double tavg = 0;
+  // double tmp_tall = 0;
 
   while (1) {
 
@@ -512,16 +358,9 @@ void run_ccd(const vector<Aabb> boxes, const Eigen::MatrixXd &vertices_t0,
 
     CCDdata *d_ee_data_list;
     CCDdata *d_vf_data_list;
-    // size_t max_query_cp_size = EACH_LAUNCH_SIZE;
-
-    // ee_size_tmp = max(ee_size, EACH_LAUNCH_SIZE);
-    // vf_size_tmp = max(vf_size, EACH_LAUNCH_SIZE);
-    // ee_size -= ee_size_tmp;
-    // vf_size -= vf_size_tmp;
 
     size_t ee_data_size = sizeof(CCDdata) * ee_size;
     size_t vf_data_size = sizeof(CCDdata) * vf_size;
-    // printf("data_size %llu\n", data_size);
 
     cudaMalloc((void **)&d_ee_data_list, ee_data_size);
     cudaMalloc((void **)&d_vf_data_list, vf_data_size);
@@ -529,14 +368,14 @@ void run_ccd(const vector<Aabb> boxes, const Eigen::MatrixXd &vertices_t0,
     printf("vf_data_size %llu\n", vf_data_size);
     gpuErrchk(cudaGetLastError());
 
-    addData<<<ee_size / threads + 1, threads>>>(d_ee_overlaps, d_boxes,
-                                                d_vertices_t0, d_vertices_t1,
-                                                Vrows, ee_size, d_ee_data_list);
+    addData<<<ee_size / threads + 1, threads>>>(
+        d_ee_overlaps, d_boxes, d_vertices_t0, d_vertices_t1, Vrows, ee_size,
+        ms, d_ee_data_list);
     cudaDeviceSynchronize();
     gpuErrchk(cudaGetLastError());
-    addData<<<vf_size / threads + 1, threads>>>(d_vf_overlaps, d_boxes,
-                                                d_vertices_t0, d_vertices_t1,
-                                                Vrows, vf_size, d_vf_data_list);
+    addData<<<vf_size / threads + 1, threads>>>(
+        d_vf_overlaps, d_boxes, d_vertices_t0, d_vertices_t1, Vrows, vf_size,
+        ms, d_vf_data_list);
     cudaDeviceSynchronize();
     gpuErrchk(cudaGetLastError());
 
@@ -545,32 +384,29 @@ void run_ccd(const vector<Aabb> boxes, const Eigen::MatrixXd &vertices_t0,
     printf("vf_size %i, ee_size %i\n", vf_size, ee_size);
 
     // int size = count;
-    // cout << "data loaded, size " << queries.size() << endl;
+    // cout << "data loaded, size " << queries.size() <<
+    // endl;
     cout << "data loaded, size " << size << endl;
-
-    // int start_id = 0;
 
     // result_list.resize(size);
 
-    // bool is_edge_edge = true;
-
+    int parallel = 64;
     printf("run_memory_pool_ccd using %i threads\n", parallel);
-    r.Start("run_memory_pool_ccd (narrowphase)", /*gpu=*/true);
+    r.Start("run_memory_pool_ccd (narrowphase)",
+            /*gpu=*/true);
     // toi = 1;
     run_memory_pool_ccd(d_vf_data_list, vf_size, /*is_edge_edge=*/false,
-                        result_list, parallel, use_ms, allow_zero_toi, tmp_tall,
-                        toi);
+                        result_list, parallel, use_ms, allow_zero_toi, toi);
     cudaDeviceSynchronize();
     gpuErrchk(cudaGetLastError());
     printf("toi after vf %e\n", toi);
-    printf("time after vf %.6f\n", tmp_tall);
+    // printf("time after vf %.6f\n", tmp_tall);
 
     run_memory_pool_ccd(d_ee_data_list, ee_size, /*is_edge_edge=*/true,
-                        result_list, parallel, use_ms, allow_zero_toi, tmp_tall,
-                        toi);
+                        result_list, parallel, use_ms, allow_zero_toi, toi);
     gpuErrchk(cudaGetLastError());
     printf("toi after ee %e\n", toi);
-    printf("time after ee %.6f\n", tmp_tall);
+    // printf("time after ee %.6f\n", tmp_tall);
     r.Stop();
 
     gpuErrchk(cudaFree(d_vf_overlaps));
@@ -578,9 +414,61 @@ void run_ccd(const vector<Aabb> boxes, const Eigen::MatrixXd &vertices_t0,
 
     start_id += tmp_nbr;
   }
-
   gpuErrchk(cudaFree(d_vf_count));
   gpuErrchk(cudaFree(d_ee_count));
+}
+
+void run_ccd(const vector<Aabb> boxes, const Eigen::MatrixXd &vertices_t0,
+             const Eigen::MatrixXd &vertices_t1, ccdgpu::Record &r, int N,
+             int &nbox, int &parallel, int &devcount,
+             vector<pair<int, int>> &overlaps, vector<int> &result_list,
+             bool &use_ms, bool &allow_zero_toi, ccd::Scalar &ms,
+             ccd::Scalar &toi) {
+  int2 *d_overlaps;
+  int *d_count;
+  int threads = 32; // HARDCODING THREADS FOR NOW
+  r.Start("run_sweep_sharedqueue (broadphase)", /*gpu=*/true);
+  run_sweep_sharedqueue(boxes.data(), N, nbox, overlaps, d_overlaps, d_count,
+                        threads, devcount);
+  r.Stop();
+  threads = 1024;
+  gpuErrchk(cudaGetLastError());
+  printf("Threads now %i\n", threads);
+
+  r.Start("copyBoxesToGpu", /*gpu=*/true);
+  // copy overlap count
+  int count;
+  gpuErrchk(cudaMemcpy(&count, d_count, sizeof(int), cudaMemcpyDeviceToHost));
+  printf("Count %i\n", count);
+  gpuErrchk(cudaGetLastError());
+
+  // Allocate boxes to GPU
+  Aabb *d_boxes;
+  cudaMalloc((void **)&d_boxes, sizeof(Aabb) * N);
+  cudaMemcpy(d_boxes, boxes.data(), sizeof(Aabb) * N, cudaMemcpyHostToDevice);
+  gpuErrchk(cudaGetLastError());
+  r.Stop();
+
+  r.Start("copyVerticesToGpu", /*gpu=*/true);
+  printf("Copying vertices\n");
+  ccd::Scalar *d_vertices_t0;
+  ccd::Scalar *d_vertices_t1;
+  cudaMalloc((void **)&d_vertices_t0, sizeof(ccd::Scalar) * vertices_t0.size());
+  cudaMalloc((void **)&d_vertices_t1, sizeof(ccd::Scalar) * vertices_t1.size());
+  cudaMemcpy(d_vertices_t0, vertices_t0.data(),
+             sizeof(ccd::Scalar) * vertices_t0.size(), cudaMemcpyHostToDevice);
+  cudaMemcpy(d_vertices_t1, vertices_t1.data(),
+             sizeof(ccd::Scalar) * vertices_t1.size(), cudaMemcpyHostToDevice);
+  r.Stop();
+  int Vrows = vertices_t0.rows();
+  assert(Vrows == vertices_t1.rows());
+
+  run_narrowphase(d_overlaps, d_boxes, count, d_vertices_t0, d_vertices_t1,
+                  Vrows, threads, ms, use_ms, allow_zero_toi, result_list, toi,
+                  r);
+
+  gpuErrchk(cudaGetLastError());
+
   gpuErrchk(cudaFree(d_overlaps));
   gpuErrchk(cudaFree(d_boxes));
   gpuErrchk(cudaFree(d_vertices_t0));
@@ -589,12 +477,63 @@ void run_ccd(const vector<Aabb> boxes, const Eigen::MatrixXd &vertices_t0,
   gpuErrchk(cudaGetLastError());
 
   cudaDeviceSynchronize();
+}
 
-  tavg += tmp_tall;
-  cout << "tot time " << tavg << endl;
-  tavg /= size;
-  cout << "avg time " << tavg << endl;
+void compute_toi_strategy(const Eigen::MatrixXd &V0, const Eigen::MatrixXd &V1,
+                          const Eigen::MatrixXi &E, const Eigen::MatrixXi &F,
+                          ccd::Scalar min_distance, int max_iter,
+                          ccd::Scalar &earliest_toi) {
 
-  cout << "toi " << toi << endl;
-  // cudaDeviceReset();
+  vector<ccdgpu::Aabb> boxes;
+  constructBoxes(V0, V1, E, F, boxes);
+  int N = boxes.size();
+  int nbox = 0;
+  int devcount = 1;
+
+  vector<pair<int, int>> overlaps;
+  vector<int> result_list;
+
+  bool use_ms = false;
+  bool allow_zero_toi = true;
+
+  // BROADPHASE
+  int2 *d_overlaps;
+  int *d_count;
+  int threads = 32; // HARDCODING THREADS FOR NOW
+  run_sweep_sharedqueue(boxes.data(), N, nbox, overlaps, d_overlaps, d_count,
+                        threads, devcount);
+  threads = 1024;
+  gpuErrchk(cudaGetLastError());
+  printf("Threads now %i\n", threads);
+
+  // copy overlap count
+  int count;
+  gpuErrchk(cudaMemcpy(&count, d_count, sizeof(int), cudaMemcpyDeviceToHost));
+  printf("Count %i\n", count);
+  gpuErrchk(cudaGetLastError());
+
+  // Allocate boxes to GPU
+  Aabb *d_boxes;
+  cudaMalloc((void **)&d_boxes, sizeof(Aabb) * N);
+  cudaMemcpy(d_boxes, boxes.data(), sizeof(Aabb) * N, cudaMemcpyHostToDevice);
+  gpuErrchk(cudaGetLastError());
+
+  printf("Copying vertices\n");
+  ccd::Scalar *d_vertices_t0;
+  ccd::Scalar *d_vertices_t1;
+  cudaMalloc((void **)&d_vertices_t0, sizeof(ccd::Scalar) * V0.size());
+  cudaMalloc((void **)&d_vertices_t1, sizeof(ccd::Scalar) * V1.size());
+  cudaMemcpy(d_vertices_t0, V0.data(), sizeof(ccd::Scalar) * V0.size(),
+             cudaMemcpyHostToDevice);
+  cudaMemcpy(d_vertices_t1, V1.data(), sizeof(ccd::Scalar) * V1.size(),
+             cudaMemcpyHostToDevice);
+
+  int Vrows = V0.rows();
+  assert(Vrows == V1.rows());
+
+  Record r;
+
+  run_narrowphase(d_overlaps, d_boxes, count, d_vertices_t0, d_vertices_t1,
+                  Vrows, threads, /*ms=*/min_distance, /*use_ms=*/false,
+                  /*allow_zero_toi=*/true, result_list, earliest_toi, r);
 }

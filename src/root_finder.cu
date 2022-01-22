@@ -385,8 +385,7 @@ inline __device__ bool Origin_in_ee_inclusion_function_memory_pool(
 // the memory pool method
 __global__ void compute_vf_tolerance_memory_pool(CCDdata *data,
                                                  CCDConfig *config,
-                                                 const int query_size,
-                                                 bool use_ms) {
+                                                 const int query_size) {
   int tx = threadIdx.x + blockIdx.x * blockDim.x;
   if (tx >= query_size)
     return;
@@ -397,12 +396,11 @@ __global__ void compute_vf_tolerance_memory_pool(CCDdata *data,
   compute_face_vertex_tolerance_memory_pool(data[tx], config[0]);
 
   data[tx].nbr_checks = 0;
-  get_numerical_error_vf_memory_pool(data[tx], use_ms);
+  get_numerical_error_vf_memory_pool(data[tx], config[0].use_ms);
 }
 __global__ void compute_ee_tolerance_memory_pool(CCDdata *data,
                                                  CCDConfig *config,
-                                                 const int query_size,
-                                                 bool use_ms) {
+                                                 const int query_size) {
   int tx = threadIdx.x + blockIdx.x * blockDim.x;
   if (tx >= query_size)
     return;
@@ -413,7 +411,7 @@ __global__ void compute_ee_tolerance_memory_pool(CCDdata *data,
   compute_edge_edge_tolerance_memory_pool(data[tx], config[0]);
 
   data[tx].nbr_checks = 0;
-  get_numerical_error_ee_memory_pool(data[tx], use_ms);
+  get_numerical_error_ee_memory_pool(data[tx], config[0].use_ms);
 }
 
 __global__ void initialize_memory_pool(MP_unit *units, int query_size) {
@@ -540,8 +538,7 @@ mutex_update_min(cuda::binary_semaphore<cuda::thread_scope_device> &mutex,
 }
 
 __global__ void vf_ccd_memory_pool(MP_unit *units, int query_size,
-                                   CCDdata *data, CCDConfig *config,
-                                   bool allow_zero_toi) {
+                                   CCDdata *data, CCDConfig *config) {
   int tx = threadIdx.x + blockIdx.x * blockDim.x;
   if (tx >= config[0].mp_remaining)
     return;
@@ -569,7 +566,7 @@ __global__ void vf_ccd_memory_pool(MP_unit *units, int query_size,
   // { // if it is sure that have root, then no need to check
   // 	return;
   // }
-  if (data_in.nbr_checks > MAX_CHECKS) // max checks
+  if (data_in.nbr_checks > config[0].max_iter) // max checks
   {
     if (!config[0].overflow_flag)
       atomicAdd(&config[0].overflow_flag, 1);
@@ -602,7 +599,7 @@ __global__ void vf_ccd_memory_pool(MP_unit *units, int query_size,
     // Condition 2, the box is inside the epsilon box, have a root, return true;
     // condition = units_in.box_in;
 
-    if (box_in && (allow_zero_toi || time_left > 0)) {
+    if (box_in && (config[0].allow_zero_toi || time_left > 0)) {
       mutex_update_min(config[0].mutex, config[0].toi, time_left);
       // results[box_id] = 1;
       return;
@@ -611,7 +608,7 @@ __global__ void vf_ccd_memory_pool(MP_unit *units, int query_size,
     // Condition 3, real tolerance is smaller than the input tolerance, return
     // true
     condition = true_tol <= config->co_domain_tolerance;
-    if (condition && (allow_zero_toi || time_left > 0)) {
+    if (condition && (config[0].allow_zero_toi || time_left > 0)) {
       mutex_update_min(config[0].mutex, config[0].toi, time_left);
       // results[box_id] = 1;
       return;
@@ -630,8 +627,7 @@ __global__ void vf_ccd_memory_pool(MP_unit *units, int query_size,
   }
 }
 __global__ void ee_ccd_memory_pool(MP_unit *units, int query_size,
-                                   CCDdata *data, CCDConfig *config,
-                                   bool allow_zero_toi) {
+                                   CCDdata *data, CCDConfig *config) {
   //   bool allow_zero_toi = true;
 
   int tx = threadIdx.x + blockIdx.x * blockDim.x;
@@ -659,7 +655,7 @@ __global__ void ee_ccd_memory_pool(MP_unit *units, int query_size,
   // { // if it is sure that have root, then no need to check
   // 	return;
   // }
-  if (data_in.nbr_checks > MAX_CHECKS) // max checks
+  if (data_in.nbr_checks > config[0].max_iter) // max checks
   {
     if (!config[0].overflow_flag)
       atomicAdd(&config[0].overflow_flag, 1);
@@ -690,7 +686,7 @@ __global__ void ee_ccd_memory_pool(MP_unit *units, int query_size,
       return;
     }
     // Condition 2, the box is inside the epsilon box, have a root, return true;
-    if (box_in && (allow_zero_toi || time_left > 0)) {
+    if (box_in && (config[0].allow_zero_toi || time_left > 0)) {
       mutex_update_min(config[0].mutex, config[0].toi, time_left);
       // results[box_id] = 1;
       return;
@@ -699,7 +695,7 @@ __global__ void ee_ccd_memory_pool(MP_unit *units, int query_size,
     // Condition 3, real tolerance is smaller than the input tolerance, return
     // true
     condition = true_tol <= config->co_domain_tolerance;
-    if (condition && (allow_zero_toi || time_left > 0)) {
+    if (condition && (config[0].allow_zero_toi || time_left > 0)) {
       mutex_update_min(config[0].mutex, config[0].toi, time_left);
       // results[box_id] = 1;
       return;
