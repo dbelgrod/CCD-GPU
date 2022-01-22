@@ -371,7 +371,7 @@ ccd::Scalar compute_toi_strategy(const Eigen::MatrixXd &V0,
                                  const Eigen::MatrixXi &F, int max_iter,
                                  ccd::Scalar min_distance,
                                  ccd::Scalar tolerance) {
-  ccd::Scalar &earliest_toi;
+  ccd::Scalar earliest_toi;
   vector<ccdgpu::Aabb> boxes;
   constructBoxes(V0, V1, E, F, boxes);
   printf("Finished constructing\n");
