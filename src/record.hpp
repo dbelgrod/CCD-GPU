@@ -15,12 +15,12 @@
 
 #pragma once
 #include <stdio.h>
-#include <iostream>
 #include <cuda.h>
 #include <cuda_runtime.h>
 #include <ccdgpu/timer.hpp>
 
 #include <nlohmann/json.hpp>
+#include <spdlog/spdlog.h>
 
 using json = nlohmann::json;
 
@@ -36,7 +36,7 @@ namespace ccdgpu {
 //       timer.stop();
 //       double elapsed = 0;
 //       elapsed += timer.getElapsedTimeInMicroSec();
-//       printf("%s : %.6f ms\n", tag, elapsed );
+//       spdlog::trace("{} : {:.6f} ms", tag, elapsed);
 // };
 
 struct Record
@@ -68,7 +68,7 @@ struct Record
             {
                   cudaEventCreate(&start);
                   cudaEventCreate(&stop);
-                  // printf("Starting gpu timer for %s\n", s);
+                  // spdlog::trace("Starting gpu timer for {}",  s);
                   cudaEventRecord(start);
                   gpu_timer_on = true;
             }
@@ -89,14 +89,14 @@ struct Record
                   timer.stop();
                   elapsed += timer.getElapsedTimeInMicroSec();
                   elapsed /= 1000.f;
-                  printf("Cpu timer stopped for %s: %.6f ms\n", tag, elapsed);
+                  spdlog::trace("Cpu timer stopped for {}: {:.6f} ms",  tag, elapsed);
             }
             else
             {
                   cudaEventRecord(stop);
                   cudaEventSynchronize(stop);
                   cudaEventElapsedTime(&elapsed, start, stop);
-                  printf("Gpu timer stopped for %s: %.6f ms\n", tag, elapsed);
+                  spdlog::trace("Gpu timer stopped for {}: {:.6f} ms",  tag, elapsed);
                   cudaEventDestroy(start);
                   cudaEventDestroy(stop);
                   gpu_timer_on = false;
@@ -106,12 +106,12 @@ struct Record
                   j_object[tag] = (double)j_object[tag] + elapsed;
             else
                   j_object[tag] = elapsed;
-            printf("%s : %.3f ms\n", tag, elapsed);
+            spdlog::trace("{} : {:.3f} ms",  tag, elapsed);
       }
 
       void Print()
       {
-            std::cout << j_object.dump() << std::endl;  
+            spdlog::trace("{}", j_object.dump());
       }
       
       json Dump()

@@ -30,13 +30,12 @@ OPTION(CCD_TOI_PER_QUERY   "record symbolic toi per each query in json" OFF)
 
 
 ### Configuration
-set(CCDGPU_EXTERNAL "${CMAKE_CURRENT_SOURCE_DIR}/external")
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
+# set(CCDGPU_EXTERNAL "${CMAKE_CURRENT_SOURCE_DIR}/external")
+list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake/")
+list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake/recipes/")
 include(Warnings)
 include(UseColors)
 include(CCDGPU_Utils)
-
-include(${PROJECT_NAME}_Dependencies)
 
 ### the library
 add_subdirectory(src)
@@ -97,7 +96,8 @@ target_compile_options(${PROJECT_NAME} PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:
 # Required Libraries
 ################################################################################
 
-target_link_libraries(${PROJECT_NAME} PUBLIC broadphase)
+include(broadphase)
+target_link_libraries(${PROJECT_NAME} PUBLIC broadphase::broadphase)
 
 # target_link_libraries(${PROJECT_NAME} PUBLIC gputi)
 
@@ -120,6 +120,10 @@ target_link_libraries(${PROJECT_NAME} PUBLIC ${GMP_LIBRARIES})
 endif()
 
 # target_link_libraries(${PROJECT_NAME} PUBLIC ipc_toolkit)
+
+# Logger
+include(spdlog)
+target_link_libraries(${PROJECT_NAME} PUBLIC spdlog::spdlog)
 
 ################################################################################
 # Binary

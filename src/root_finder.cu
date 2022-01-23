@@ -3,10 +3,11 @@
 #include <ccdgpu/record.hpp>
 #include <ccdgpu/root_finder.cuh>
 #include <float.h>
-#include <iostream>
 #include <vector>
 
 #include <cuda/semaphore>
+
+#include <spdlog/spdlog.h>
 
 using namespace std;
 
@@ -15,8 +16,7 @@ using namespace std;
 inline void gpuAssert(cudaError_t code, const char *file, int line,
                       bool abort = true) {
   if (code != cudaSuccess) {
-    fprintf(stderr, "GPUassert: %s %s %d\n", cudaGetErrorString(code), file,
-            line);
+    spdlog::error("GPUassert: {} {} {:d}\n", cudaGetErrorString(code), file, line);
     if (abort)
       exit(code);
   }
@@ -769,7 +769,7 @@ void run_memory_pool_ccd(CCDdata *d_data_list, int tmp_nbr, bool is_edge,
                          bool allow_zero_toi, ccd::Scalar &toi,
                          ccdgpu::Record &r) {
   int nbr = tmp_nbr;
-  cout << "tmp_nbr " << tmp_nbr << endl;
+  spdlog::trace("tmp_nbr {}", tmp_nbr);
   // int *res = new int[nbr];
   CCDConfig *config = new CCDConfig[1];
   // config[0].err_in[0] =
@@ -788,7 +788,7 @@ void run_memory_pool_ccd(CCDdata *d_data_list, int tmp_nbr, bool is_edge,
   config[0].use_ms = use_ms;
   config[0].allow_zero_toi = allow_zero_toi;
   config[0].max_iter = max_iter;
-  printf("unit_size : %llu\n", config[0].unit_size);
+  spdlog::trace("unit_size : {:d}",  config[0].unit_size);
 
   // int *d_res;
   MP_unit *d_units;
@@ -805,7 +805,7 @@ void run_memory_pool_ccd(CCDdata *d_data_list, int tmp_nbr, bool is_edge,
   gpuErrchk(cudaGetLastError());
   // ccd::Timer timer;
   // timer.start();
-  printf("nbr: %i, parallel_nbr %i\n", nbr, parallel_nbr);
+  spdlog::trace("nbr: {:d}, parallel_nbr {:d}",  nbr, parallel_nbr);
   initialize_memory_pool<<<nbr / parallel_nbr + 1, parallel_nbr>>>(d_units,
                                                                    nbr);
   cudaDeviceSynchronize();
@@ -819,14 +819,14 @@ void run_memory_pool_ccd(CCDdata *d_data_list, int tmp_nbr, bool is_edge,
   cudaDeviceSynchronize();
   gpuErrchk(cudaGetLastError());
 
-  printf("MAX_OVERLAP_SIZE: %llu\n", MAX_OVERLAP_SIZE);
-  printf("sizeof(Scalar) %i\n", sizeof(ccd::Scalar));
+  spdlog::trace("MAX_OVERLAP_SIZE: {:d}",  MAX_OVERLAP_SIZE);
+  spdlog::trace("sizeof(Scalar) {:d}",  sizeof(ccd::Scalar));
 
   int nbr_per_loop = nbr;
   int start;
   int end;
 
-  printf("Queue size t0: %i\n", nbr_per_loop);
+  spdlog::trace("Queue size t0: {:d}",  nbr_per_loop);
   while (nbr_per_loop > 0) {
     if (is_edge) {
       ee_ccd_memory_pool<<<nbr_per_loop / parallel_nbr + 1, parallel_nbr>>>(
@@ -847,12 +847,11 @@ void run_memory_pool_ccd(CCDdata *d_data_list, int tmp_nbr, bool is_edge,
     // cudaMemcpyDeviceToHost); cudaMemcpy(&toi, &d_config[0].toi,
     // sizeof(ccd::Scalar),
     //            cudaMemcpyDeviceToHost);
-    // std::cout << "toi " << toi << std::endl;
-    // printf("toi %.4f\n", toi);
-    // printf("Start %i, End %i, Queue size: %i\n", start, end,
-    // nbr_per_loop);
+    // spdlog::trace("toi {}", toi);
+    // spdlog::trace("toi {:.4f}",  toi);
+    // spdlog::trace("Start {:d}, End {:d}, Queue size: {:d}",  start, end, nbr_per_loop);
     gpuErrchk(cudaGetLastError());
-    printf("Queue size: %i\n", nbr_per_loop);
+    spdlog::trace("Queue size: {:d}",  nbr_per_loop);
   }
   cudaDeviceSynchronize();
   // double tt = timer.getElapsedTimeInMicroSec();
@@ -866,7 +865,7 @@ void run_memory_pool_ccd(CCDdata *d_data_list, int tmp_nbr, bool is_edge,
   cudaMemcpy(&overflow, &d_config[0].overflow_flag, sizeof(int),
              cudaMemcpyDeviceToHost);
   if (overflow) {
-    printf("OVERFLOW!!!!\n");
+    spdlog::error("OVERFLOW!!!!");
     abort();
   }
 
@@ -880,7 +879,7 @@ void run_memory_pool_ccd(CCDdata *d_data_list, int tmp_nbr, bool is_edge,
   // delete[] res;
   delete[] config;
   cudaError_t ct = cudaGetLastError();
-  printf("******************\n%s\n************\n", cudaGetErrorString(ct));
+  spdlog::trace("\n******************\n{}\n******************",  cudaGetErrorString(ct));
 
 #ifdef CCD_TOI_PER_QUERY
   CCDdata *data_list = new CCDdata[tmp_nbr];
