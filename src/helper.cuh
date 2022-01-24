@@ -37,6 +37,12 @@ void run_ccd(const vector<Aabb> boxes, const Eigen::MatrixXd &vertices_t0,
              bool &use_ms, bool &allow_zero_toi, ccd::Scalar &min_distance,
              ccd::Scalar &toi);
 
+void run_narrowphase(int2 *d_overlaps, Aabb *d_boxes, int count,
+                     ccd::Scalar *d_vertices_t0, ccd::Scalar *d_vertices_t1,
+                     int Vrows, int threads, int max_iter, ccd::Scalar tol,
+                     ccd::Scalar ms, bool use_ms, bool allow_zero_toi,
+                     vector<int> &result_list, ccd::Scalar &toi, Record &r);
+
 void construct_static_collision_candidates(const Eigen::MatrixXd &V,
                                            const Eigen::MatrixXi &E,
                                            const Eigen::MatrixXi &F,
