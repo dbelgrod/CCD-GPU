@@ -1,4 +1,6 @@
 #include <array>
+#include <ccdgpu/rational.hpp>
+#include <ccdgpu/record.hpp>
 #include <ccdgpu/root_finder.cuh>
 #include <float.h>
 #include <iostream>
@@ -597,6 +599,10 @@ __global__ void vf_ccd_memory_pool(MP_unit *units, int query_size,
     if (condition) {
       mutex_update_min(config[0].mutex, config[0].toi, time_left);
       // results[box_id] = 1;
+
+#ifdef CCD_TOI_PER_QUERY
+      mutex_update_min(config[0].mutex, data[box_id].toi, time_left);
+#endif
       return;
     }
     // Condition 2, the box is inside the epsilon box, have a root, return true;
@@ -605,6 +611,10 @@ __global__ void vf_ccd_memory_pool(MP_unit *units, int query_size,
     if (box_in && (config[0].allow_zero_toi || time_left > 0)) {
       mutex_update_min(config[0].mutex, config[0].toi, time_left);
       // results[box_id] = 1;
+
+#ifdef CCD_TOI_PER_QUERY
+      mutex_update_min(config[0].mutex, data[box_id].toi, time_left);
+#endif
       return;
     }
 
@@ -614,6 +624,10 @@ __global__ void vf_ccd_memory_pool(MP_unit *units, int query_size,
     if (condition && (config[0].allow_zero_toi || time_left > 0)) {
       mutex_update_min(config[0].mutex, config[0].toi, time_left);
       // results[box_id] = 1;
+
+#ifdef CCD_TOI_PER_QUERY
+      mutex_update_min(config[0].mutex, data[box_id].toi, time_left);
+#endif
       return;
     }
     const int split = split_dimension_memory_pool(data_in, widths);
@@ -625,6 +639,10 @@ __global__ void vf_ccd_memory_pool(MP_unit *units, int query_size,
     {
       mutex_update_min(config[0].mutex, config[0].toi, time_left);
       // results[box_id] = 1;
+
+#ifdef CCD_TOI_PER_QUERY
+      mutex_update_min(config[0].mutex, data[box_id].toi, time_left);
+#endif
       return;
     }
   }
@@ -687,12 +705,20 @@ __global__ void ee_ccd_memory_pool(MP_unit *units, int query_size,
     if (condition) {
       mutex_update_min(config[0].mutex, config[0].toi, time_left);
       // results[box_id] = 1;
+
+#ifdef CCD_TOI_PER_QUERY
+      mutex_update_min(config[0].mutex, data[box_id].toi, time_left);
+#endif
       return;
     }
     // Condition 2, the box is inside the epsilon box, have a root, return true;
     if (box_in && (config[0].allow_zero_toi || time_left > 0)) {
       mutex_update_min(config[0].mutex, config[0].toi, time_left);
       // results[box_id] = 1;
+
+#ifdef CCD_TOI_PER_QUERY
+      mutex_update_min(config[0].mutex, data[box_id].toi, time_left);
+#endif
       return;
     }
 
@@ -702,6 +728,10 @@ __global__ void ee_ccd_memory_pool(MP_unit *units, int query_size,
     if (condition && (config[0].allow_zero_toi || time_left > 0)) {
       mutex_update_min(config[0].mutex, config[0].toi, time_left);
       // results[box_id] = 1;
+
+#ifdef CCD_TOI_PER_QUERY
+      mutex_update_min(config[0].mutex, data[box_id].toi, time_left);
+#endif
       return;
     }
     const int split = split_dimension_memory_pool(data_in, widths);
@@ -713,6 +743,11 @@ __global__ void ee_ccd_memory_pool(MP_unit *units, int query_size,
     {
       mutex_update_min(config[0].mutex, config[0].toi, time_left);
       // results[box_id] = 1;
+
+#ifdef CCD_TOI_PER_QUERY
+      mutex_update_min(config[0].mutex, data[box_id].toi, time_left);
+#endif
+
       return;
     }
   }
@@ -731,7 +766,8 @@ __global__ void shift_queue_pointers(CCDConfig *config) {
 void run_memory_pool_ccd(CCDdata *d_data_list, int tmp_nbr, bool is_edge,
                          std::vector<int> &result_list, int parallel_nbr,
                          int max_iter, ccd::Scalar tol, bool use_ms,
-                         bool allow_zero_toi, ccd::Scalar &toi) {
+                         bool allow_zero_toi, ccd::Scalar &toi,
+                         ccdgpu::Record &r) {
   int nbr = tmp_nbr;
   cout << "tmp_nbr " << tmp_nbr << endl;
   // int *res = new int[nbr];
@@ -834,7 +870,6 @@ void run_memory_pool_ccd(CCDdata *d_data_list, int tmp_nbr, bool is_edge,
     abort();
   }
 
-  gpuErrchk(cudaFree(d_data_list));
   gpuErrchk(cudaFree(d_units));
   gpuErrchk(cudaFree(d_config));
 
@@ -847,6 +882,39 @@ void run_memory_pool_ccd(CCDdata *d_data_list, int tmp_nbr, bool is_edge,
   cudaError_t ct = cudaGetLastError();
   printf("******************\n%s\n************\n", cudaGetErrorString(ct));
 
+#ifdef CCD_TOI_PER_QUERY
+  CCDdata *data_list = new CCDdata[tmp_nbr];
+  // CCDConfig *config = new CCDConfig[1];
+  cudaMemcpy(data_list, d_data_list, sizeof(CCDdata) * tmp_nbr,
+             cudaMemcpyDeviceToHost);
+  // std::vector<std::pair<std::string, std::string>> symbolic_tois;
+  for (size_t i = 0; i < tmp_nbr; i++) {
+    ccdgpu::Rational ra(data_list[i].toi);
+    // symbolic_tois.emplace_back(ra.get_numerator_str(),
+    //                            ra.get_denominator_str());
+    auto pair = make_pair(ra.get_numerator_str(), ra.get_denominator_str());
+    if (data_list[i].toi != 1)
+      printf("nonzero toi %i, %.6f\n", i, data_list[i].toi);
+    r.j_object["toi_per_query"].push_back({pair});
+  }
+  // json jtmp(symbolic_tois.begin(), symbolic_tois.end());
+  // std::cout << jtmp.dump(4) << std::endl;
+  // r.j_object.insert(jtmp.begin(), jtmp.end());
+  // r.j_object.push_back(r.j_object.end(), jtmp.begin(), jtmp.end());
+  // r.j_object.push_back(symbolic_tois);
+  //  symbolic_tois.end());
+
+  // json j_vec(falseNegativePairs);
+  // r.j_object.insert(r.j_object.end(), symbolic_tois.begin(),
+  //                   symbolic_tois.end());
+
+  // std::ofstream o(outputFilePath);
+  // o << std::setw(4) << j_vec << std::endl;
+  // auto outputFilename = std::filesystem::path(std::to_string(iter) +
+  // ".json"); outputFilename = outputFolder / outputFilename; std::ofstream
+  // o(outputFilename); o << std::setw(4) << j << std::endl;
+#endif
+  gpuErrchk(cudaFree(d_data_list));
   return;
 }
 

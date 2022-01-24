@@ -22,8 +22,10 @@
 
 #include <nlohmann/json.hpp>
 
-namespace ccdgpu {
 using json = nlohmann::json;
+
+namespace ccdgpu {
+
 
 
 // template <typename... Arguments>

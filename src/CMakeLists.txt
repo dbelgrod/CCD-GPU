@@ -8,7 +8,7 @@ tools/timer.hpp
 # tools/io.cpp
 # tools/read_rational_csv.cpp
 # tools/read_rational_csv.hpp
-# tools/rational.hpp
+tools/rational.hpp
 
 src/Type.hpp
 src/root_finder.cuh

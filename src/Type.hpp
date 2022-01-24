@@ -124,13 +124,12 @@ public:
   Scalar v3e[3];
   Scalar ms;     // minimum separation
   Scalar err[3]; // error bound of each query, calculated from each scene
-  Scalar
-      tol[3]; // domain tolerance that helps to decide which dimension to split
-  // int last_round_has_root = 0;
-  // int last_round_has_root_record =
-  //     0; // to avoid missing collisions by resetting last_round_has_root
-  // int sure_have_root;
+  Scalar tol[3]; // domain tolerance to help decide which dimension to split
+#ifdef CCD_TOI_PER_QUERY
+  Scalar toi;
+#endif
   int nbr_checks = 0;
+
   __device__ __host__ CCDdata &operator=(const CCDdata &x) {
     if (this == &x)
       return *this;

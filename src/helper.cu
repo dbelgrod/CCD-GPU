@@ -58,6 +58,9 @@ __global__ void addData(const int2 *const overlaps,
     return;
 
   data[tid].ms = ms;
+#ifdef CCD_TOI_PER_QUERY
+  data[tid].toi = 1;
+#endif
 
   // printf("vf_count %i, ee_count %i", *vf_count, *ee_count);
 
@@ -277,7 +280,7 @@ void run_narrowphase(int2 *d_overlaps, Aabb *d_boxes, int count,
     // toi = 1;
     run_memory_pool_ccd(d_vf_data_list, vf_size, /*is_edge_edge=*/false,
                         result_list, parallel, max_iter, tol, use_ms,
-                        allow_zero_toi, toi);
+                        allow_zero_toi, toi, r);
 
     cudaDeviceSynchronize();
     gpuErrchk(cudaGetLastError());
@@ -286,7 +289,7 @@ void run_narrowphase(int2 *d_overlaps, Aabb *d_boxes, int count,
 
     run_memory_pool_ccd(d_ee_data_list, ee_size, /*is_edge_edge=*/true,
                         result_list, parallel, max_iter, tol, use_ms,
-                        allow_zero_toi, toi);
+                        allow_zero_toi, toi, r);
     gpuErrchk(cudaGetLastError());
     printf("toi after ee %e\n", toi);
     // printf("time after ee %.6f\n", tmp_tall);

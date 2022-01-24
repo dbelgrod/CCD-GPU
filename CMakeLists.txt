@@ -26,6 +26,7 @@ else()
 endif()
 
 OPTION(GPUTI_WITH_DOUBLE_PRECISION   "use double precision calculation" ON)
+OPTION(CCD_TOI_PER_QUERY   "record symbolic toi per each query in json" OFF)
 
 
 ### Configuration
@@ -46,8 +47,12 @@ add_library(${PROJECT_NAME} STATIC ${CCDGPU_SOURCES})
 target_include_directories(${PROJECT_NAME} PUBLIC ${PROJECT_BINARY_DIR}/include)
 # target_link_libraries(CCDGPU PRIVATE warnings::all)
 target_compile_definitions(${PROJECT_NAME} PUBLIC NOMINMAX)
+
 if(GPUTI_WITH_DOUBLE_PRECISION)
   target_compile_definitions(${PROJECT_NAME} PUBLIC -DGPUTI_USE_DOUBLE_PRECISION)
+endif()
+if(CCD_TOI_PER_QUERY)
+  target_compile_definitions(${PROJECT_NAME} PUBLIC CCD_TOI_PER_QUERY)
 endif()
 
 # Request that CCDGPU be built with -std=c++11
@@ -103,6 +108,16 @@ target_link_libraries(${PROJECT_NAME} PUBLIC igl::core)
 
 # JSON
 target_link_libraries(${PROJECT_NAME} PUBLIC nlohmann::json)
+
+# gmp
+if(CCD_TOI_PER_QUERY)
+find_package(GMP)
+IF(NOT ${GMP_FOUND})
+        MESSAGE(FATAL_ERROR "Cannot find GMP")
+ENDIF()
+target_include_directories(${PROJECT_NAME} PUBLIC ${GMP_INCLUDE_DIRS})
+target_link_libraries(${PROJECT_NAME} PUBLIC ${GMP_LIBRARIES})
+endif()
 
 # target_link_libraries(${PROJECT_NAME} PUBLIC ipc_toolkit)
 

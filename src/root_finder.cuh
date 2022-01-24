@@ -1,9 +1,11 @@
 #pragma once
 #include <array>
 #include <ccdgpu/Type.hpp>
+#include <ccdgpu/record.hpp>
 #include <ccdgpu/timer.hpp>
 #include <iostream>
 #include <vector>
+
 
 // #include <gputi/book.h>
 namespace ccd {
@@ -29,7 +31,8 @@ __global__ void compute_ee_tolerance_memory_pool(CCDdata *data,
 void run_memory_pool_ccd(CCDdata *d_data_list, int tmp_nbr, bool is_edge,
                          std::vector<int> &result_list, int parallel_nbr,
                          int max_iter, ccd::Scalar tol, bool use_ms,
-                         bool allow_zero_toi, ccd::Scalar &toi);
+                         bool allow_zero_toi, ccd::Scalar &toi,
+                         ccdgpu::Record &r);
 
 // get the filter of ccd. the inputs are the vertices of the bounding box of
 // the simulation scene this function is directly copied from
