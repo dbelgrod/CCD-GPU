@@ -888,14 +888,17 @@ void run_memory_pool_ccd(CCDdata *d_data_list, int tmp_nbr, bool is_edge,
   cudaMemcpy(data_list, d_data_list, sizeof(CCDdata) * tmp_nbr,
              cudaMemcpyDeviceToHost);
   // std::vector<std::pair<std::string, std::string>> symbolic_tois;
+
   for (size_t i = 0; i < tmp_nbr; i++) {
     ccdgpu::Rational ra(data_list[i].toi);
     // symbolic_tois.emplace_back(ra.get_numerator_str(),
     //                            ra.get_denominator_str());
-    auto pair = make_pair(ra.get_numerator_str(), ra.get_denominator_str());
+    // auto pair = make_pair(ra.get_numerator_str(), ra.get_denominator_str());
+    std::string triple[3] = {std::to_string(data_list[i].id),
+                             ra.get_numerator_str(), ra.get_denominator_str()};
     if (data_list[i].toi != 1)
-      printf("nonzero toi %i, %.6f\n", i, data_list[i].toi);
-    r.j_object["toi_per_query"].push_back({pair});
+      printf("nonzero toi %i, %.6f\n", triple[0], data_list[i].toi);
+    r.j_object["toi_per_query"].push_back({triple});
   }
   // json jtmp(symbolic_tois.begin(), symbolic_tois.end());
   // std::cout << jtmp.dump(4) << std::endl;

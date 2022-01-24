@@ -127,6 +127,7 @@ public:
   Scalar tol[3]; // domain tolerance to help decide which dimension to split
 #ifdef CCD_TOI_PER_QUERY
   Scalar toi;
+  int id;
 #endif
   int nbr_checks = 0;
 

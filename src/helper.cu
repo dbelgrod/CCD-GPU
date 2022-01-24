@@ -52,7 +52,7 @@ __global__ void addData(const int2 *const overlaps,
                         const ccdgpu::Aabb *const boxes,
                         const ccd::Scalar *const V0,
                         const ccd::Scalar *const V1, int Vrows, int N,
-                        ccd::Scalar ms, ccd::CCDdata *data) {
+                        ccd::Scalar ms, ccd::CCDdata *data, int shift) {
   int tid = threadIdx.x + blockIdx.x * blockDim.x;
   if (tid >= N)
     return;
@@ -60,6 +60,7 @@ __global__ void addData(const int2 *const overlaps,
   data[tid].ms = ms;
 #ifdef CCD_TOI_PER_QUERY
   data[tid].toi = 1;
+  data[tid].id = shift;
 #endif
 
   // printf("vf_count %i, ee_count %i", *vf_count, *ee_count);
@@ -251,14 +252,14 @@ void run_narrowphase(int2 *d_overlaps, Aabb *d_boxes, int count,
     printf("vf_data_size %llu\n", vf_data_size);
     gpuErrchk(cudaGetLastError());
 
-    addData<<<ee_size / threads + 1, threads>>>(
-        d_ee_overlaps, d_boxes, d_vertices_t0, d_vertices_t1, Vrows, ee_size,
-        ms, d_ee_data_list);
-    cudaDeviceSynchronize();
-    gpuErrchk(cudaGetLastError());
     addData<<<vf_size / threads + 1, threads>>>(
         d_vf_overlaps, d_boxes, d_vertices_t0, d_vertices_t1, Vrows, vf_size,
-        ms, d_vf_data_list);
+        ms, d_vf_data_list, 0);
+    cudaDeviceSynchronize();
+    gpuErrchk(cudaGetLastError());
+    addData<<<ee_size / threads + 1, threads>>>(
+        d_ee_overlaps, d_boxes, d_vertices_t0, d_vertices_t1, Vrows, ee_size,
+        ms, d_ee_data_list, vf_size);
     cudaDeviceSynchronize();
     gpuErrchk(cudaGetLastError());
 

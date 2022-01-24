@@ -26,7 +26,7 @@ __global__ void addData(const int2 *const overlaps,
                         const ccd::Scalar *const V0,
                         const ccd::Scalar *const V1, int Vrows, int N,
                         // ccd::Scalar3 *queries);
-                        ccd::CCDdata *data);
+                        ccd::CCDdata *data, int shift = 0);
 
 bool is_file_exist(const char *fileName);
 
