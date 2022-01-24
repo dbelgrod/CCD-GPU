@@ -897,9 +897,10 @@ void run_memory_pool_ccd(CCDdata *d_data_list, int tmp_nbr, bool is_edge,
     std::string triple[3] = {std::to_string(data_list[i].id),
                              ra.get_numerator_str(), ra.get_denominator_str()};
     if (data_list[i].toi != 1)
-      printf("nonzero toi %i, %.6f\n", triple[0], data_list[i].toi);
+      printf("nonzero toi %s, %.6f\n", triple[0].c_str(), data_list[i].toi);
     r.j_object["toi_per_query"].push_back(triple);
   }
+  free(data_list);
   // json jtmp(symbolic_tois.begin(), symbolic_tois.end());
   // std::cout << jtmp.dump(4) << std::endl;
   // r.j_object.insert(jtmp.begin(), jtmp.end());
