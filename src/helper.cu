@@ -60,7 +60,7 @@ __global__ void addData(const int2 *const overlaps,
   data[tid].ms = ms;
 #ifdef CCD_TOI_PER_QUERY
   data[tid].toi = 1;
-  data[tid].id = shift;
+  data[tid].id = shift + tid;
 #endif
 
   // printf("vf_count %i, ee_count %i", *vf_count, *ee_count);
