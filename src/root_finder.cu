@@ -679,8 +679,8 @@ __global__ void ee_ccd_memory_pool(MP_unit *units, int query_size,
   if (config[0].max_iter >= 0 &&
       data_in.nbr_checks > config[0].max_iter) // max checks
   {
-    if (!config[0].overflow_flag)
-      atomicAdd(&config[0].overflow_flag, 1);
+    // if (!config[0].overflow_flag)
+    //   atomicAdd(&config[0].overflow_flag, 1);
     return;
   } else if (config[0].mp_remaining > config[0].unit_size / 2) // overflow
   {
