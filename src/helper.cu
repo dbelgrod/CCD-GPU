@@ -8,8 +8,6 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-#include <iostream>
-
 // #include <gputi/book.h>
 // #include <gputi/io.h>
 #include <ccdgpu/root_finder.cuh>
@@ -19,8 +17,7 @@
 #include <ccdgpu/record.hpp>
 #include <gpubf/simulation.cuh>
 
-#include <thrust/execution_policy.h>
-#include <thrust/sort.h>
+#include <spdlog/spdlog.h>
 
 using namespace std;
 using namespace ccd;
@@ -63,7 +60,7 @@ __global__ void addData(const int2 *const overlaps,
 
   data[tid].ms = ms;
 
-  // printf("vf_count %i, ee_count %i", *vf_count, *ee_count);
+  // spdlog::trace("vf_count {:d}, ee_count {:d}", *vf_count, *ee_count);
 
   // int minner = min(overlaps[tid].x, overlaps[tid].y);
   // int maxxer = max(overlaps[tid].x, overlaps[tid].y);
@@ -229,7 +226,7 @@ void run_narrowphase(int2 *d_overlaps, Aabb *d_boxes, int count,
     int remain = size - start_id;
     if (remain <= 0 || toi == 0)
       break;
-    printf("remain %i, start_id %i\n", remain, start_id);
+    spdlog::trace("remain {:d}, start_id {:d}", remain, start_id);
 
     int tmp_nbr = std::min(remain, MAX_OVERLAP_SIZE);
     // int tmp_nbr = std::min(remain, size / 4);
@@ -259,7 +256,7 @@ void run_narrowphase(int2 *d_overlaps, Aabb *d_boxes, int count,
     int ee_size;
     cudaMemcpy(&vf_size, d_vf_count, sizeof(int), cudaMemcpyDeviceToHost);
     cudaMemcpy(&ee_size, d_ee_count, sizeof(int), cudaMemcpyDeviceToHost);
-    cout << "vf_size " << vf_size << " ee_size " << ee_size << endl;
+    spdlog::trace("vf_size {} ee_size {}", vf_size, ee_size);
     gpuErrchk(cudaGetLastError());
 
     // hack
@@ -277,8 +274,8 @@ void run_narrowphase(int2 *d_overlaps, Aabb *d_boxes, int count,
 
     cudaMalloc((void **)&d_ee_data_list, ee_data_size);
     cudaMalloc((void **)&d_vf_data_list, vf_data_size);
-    printf("ee_data_size %llu\n", ee_data_size);
-    printf("vf_data_size %llu\n", vf_data_size);
+    spdlog::trace("ee_data_size {:d}", ee_data_size);
+    spdlog::trace("vf_data_size {:d}", vf_data_size);
     gpuErrchk(cudaGetLastError());
 
     addData<<<vf_size / threads + 1, threads>>>(
@@ -294,19 +291,17 @@ void run_narrowphase(int2 *d_overlaps, Aabb *d_boxes, int count,
 
     r.Stop();
 
-    printf("vf_size %i, ee_size %i\n", vf_size, ee_size);
+    spdlog::trace("vf_size {:d}, ee_size {:d}", vf_size, ee_size);
 
     // int size = count;
-    // cout << "data loaded, size " << queries.size() <<
-    // endl;
-    cout << "data loaded, size " << size << endl;
+    // spdlog::trace("data loaded, size {}", queries.size());
+    spdlog::trace("data loaded, size {}", size);
 
     // result_list.resize(size);
 
     int parallel = 64;
-    printf("run_memory_pool_ccd using %i threads\n", parallel);
-    r.Start("run_memory_pool_ccd (narrowphase)",
-            /*gpu=*/true);
+    spdlog::trace("run_memory_pool_ccd using {:d} threads", parallel);
+    r.Start("run_memory_pool_ccd (narrowphase)", /*gpu=*/true);
     // toi = 1;
     run_memory_pool_ccd(d_vf_data_list, vf_size, /*is_edge_edge=*/false,
                         result_list, parallel, max_iter, tol, use_ms,
@@ -314,15 +309,15 @@ void run_narrowphase(int2 *d_overlaps, Aabb *d_boxes, int count,
 
     cudaDeviceSynchronize();
     gpuErrchk(cudaGetLastError());
-    printf("toi after vf %e\n", toi);
-    // printf("time after vf %.6f\n", tmp_tall);
+    spdlog::trace("toi after vf {:e}", toi);
+    // spdlog::trace("time after vf {:.6f}",  tmp_tall);
 
     run_memory_pool_ccd(d_ee_data_list, ee_size, /*is_edge_edge=*/true,
                         result_list, parallel, max_iter, tol, use_ms,
                         allow_zero_toi, toi, r);
     gpuErrchk(cudaGetLastError());
-    printf("toi after ee %e\n", toi);
-    // printf("time after ee %.6f\n", tmp_tall);
+    spdlog::trace("toi after ee {:e}", toi);
+    // spdlog::trace("time after ee {:.6f}",  tmp_tall);
     r.Stop();
 
     gpuErrchk(cudaFree(d_vf_overlaps));
@@ -349,13 +344,13 @@ void run_ccd(const vector<Aabb> boxes, const Eigen::MatrixXd &vertices_t0,
   r.Stop();
   threads = 1024;
   gpuErrchk(cudaGetLastError());
-  printf("Threads now %i\n", threads);
+  spdlog::trace("Threads now {:d}", threads);
 
   r.Start("copyBoxesToGpu", /*gpu=*/true);
   // copy overlap count
   int count;
   gpuErrchk(cudaMemcpy(&count, d_count, sizeof(int), cudaMemcpyDeviceToHost));
-  printf("Count %i\n", count);
+  spdlog::trace("Count {:d}", count);
   gpuErrchk(cudaGetLastError());
 
   // cout << "boxes " << boxes.size() << " " << boxes[0].min.x << " " << endl;
@@ -368,7 +363,7 @@ void run_ccd(const vector<Aabb> boxes, const Eigen::MatrixXd &vertices_t0,
   r.Stop();
 
   r.Start("copyVerticesToGpu", /*gpu=*/true);
-  printf("Copying vertices\n");
+  spdlog::trace("Copying vertices");
   ccd::Scalar *d_vertices_t0;
   ccd::Scalar *d_vertices_t1;
   cudaMalloc((void **)&d_vertices_t0, sizeof(ccd::Scalar) * vertices_t0.size());
@@ -419,7 +414,7 @@ void construct_static_collision_candidates(const Eigen::MatrixXd &V,
                         threads, devcount, /*keep_cpu_overlaps=*/true);
   gpuErrchk(cudaGetLastError());
 
-  printf("Overlaps size %i\n", overlaps.size());
+  spdlog::trace("Overlaps size {:d}", overlaps.size());
 }
 
 ccd::Scalar compute_toi_strategy(const Eigen::MatrixXd &V0,
@@ -431,7 +426,7 @@ ccd::Scalar compute_toi_strategy(const Eigen::MatrixXd &V0,
   ccd::Scalar earliest_toi;
   vector<ccdgpu::Aabb> boxes;
   constructBoxes(V0, V1, E, F, boxes);
-  printf("Finished constructing\n");
+  spdlog::trace("Finished constructing");
   int N = boxes.size();
   int nbox = 0;
   int devcount = 1;
@@ -447,12 +442,12 @@ ccd::Scalar compute_toi_strategy(const Eigen::MatrixXd &V0,
                         threads, devcount);
   threads = 1024;
   gpuErrchk(cudaGetLastError());
-  printf("Threads now %i\n", threads);
+  spdlog::trace("Threads now {:d}", threads);
 
   // copy overlap count
   int count;
   gpuErrchk(cudaMemcpy(&count, d_count, sizeof(int), cudaMemcpyDeviceToHost));
-  printf("Count %i\n", count);
+  spdlog::trace("Count {:d}", count);
   gpuErrchk(cudaGetLastError());
 
   // Allocate boxes to GPU
@@ -461,7 +456,7 @@ ccd::Scalar compute_toi_strategy(const Eigen::MatrixXd &V0,
   cudaMemcpy(d_boxes, boxes.data(), sizeof(Aabb) * N, cudaMemcpyHostToDevice);
   gpuErrchk(cudaGetLastError());
 
-  printf("Copying vertices\n");
+  spdlog::trace("Copying vertices");
   ccd::Scalar *d_vertices_t0;
   ccd::Scalar *d_vertices_t1;
   cudaMalloc((void **)&d_vertices_t0, sizeof(ccd::Scalar) * V0.size());

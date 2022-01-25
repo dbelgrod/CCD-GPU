@@ -3,7 +3,6 @@
 #include <ccdgpu/Type.hpp>
 #include <ccdgpu/record.hpp>
 #include <ccdgpu/timer.hpp>
-#include <iostream>
 #include <vector>
 
 

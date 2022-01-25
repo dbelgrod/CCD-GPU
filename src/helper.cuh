@@ -4,6 +4,8 @@
 #include <ccdgpu/record.hpp>
 #include <gpubf/aabb.cuh>
 
+#include <spdlog/spdlog.h>
+
 // using namespace ccdgpu;
 
 #define Vec3Conv(v)                                                            \
@@ -14,8 +16,7 @@
 inline void gpuAssert(cudaError_t code, const char *file, int line,
                       bool abort = true) {
   if (code != cudaSuccess) {
-    fprintf(stderr, "GPUassert: %s %s %d\n", cudaGetErrorString(code), file,
-            line);
+    spdlog::error("GPUassert: {} {} {:d}", cudaGetErrorString(code), file, line);
     if (abort)
       exit(code);
   }
