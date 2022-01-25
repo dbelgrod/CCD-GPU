@@ -385,6 +385,7 @@ void run_ccd(const vector<Aabb> boxes, const Eigen::MatrixXd &vertices_t0,
 
   gpuErrchk(cudaGetLastError());
 
+  gpuErrchk(cudaFree(d_count));
   gpuErrchk(cudaFree(d_overlaps));
   gpuErrchk(cudaFree(d_boxes));
   gpuErrchk(cudaFree(d_vertices_t0));
@@ -415,6 +416,8 @@ void construct_static_collision_candidates(const Eigen::MatrixXd &V,
   gpuErrchk(cudaGetLastError());
 
   spdlog::trace("Overlaps size {:d}", overlaps.size());
+  cudaFree(d_overlaps);
+  cudaFree(d_count);
 }
 
 ccd::Scalar compute_toi_strategy(const Eigen::MatrixXd &V0,
@@ -487,5 +490,16 @@ ccd::Scalar compute_toi_strategy(const Eigen::MatrixXd &V0,
                     /*allow_zero_toi=*/false, result_list, earliest_toi, r);
     earliest_toi *= 0.8;
   }
+
+  gpuErrchk(cudaGetLastError());
+
+  gpuErrchk(cudaFree(d_count));
+  gpuErrchk(cudaFree(d_overlaps));
+  gpuErrchk(cudaFree(d_boxes));
+  gpuErrchk(cudaFree(d_vertices_t0));
+  gpuErrchk(cudaFree(d_vertices_t1));
+
+  gpuErrchk(cudaGetLastError());
+
   return earliest_toi;
 }
