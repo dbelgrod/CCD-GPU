@@ -446,7 +446,9 @@ split_dimension_memory_pool(const CCDdata &data,
 
 inline __device__ bool bisect_vf_memory_pool(const MP_unit &unit, int split,
                                              CCDConfig *config,
-                                             //   MP_unit bisected[2])
+#ifdef CCD_TOI_PER_QUERY
+                                             Scalar data_toi,
+#endif
                                              MP_unit *out) {
   interval_pair halves(unit.itv[split]); // bisected
 
@@ -467,7 +469,11 @@ inline __device__ bool bisect_vf_memory_pool(const MP_unit &unit, int split,
   out[unit_id].itv[split] = halves.first;
 
   if (split == 0) {
+#ifndef CCD_TOI_PER_QUERY
     if (halves.second.first <= config[0].toi) {
+#else
+    if (halves.second.first <= data_toi) {
+#endif
       unit_id = atomicInc(&config[0].mp_end, config[0].unit_size - 1);
       out[unit_id] = unit;
       out[unit_id].itv[split] = halves.second;
@@ -495,7 +501,9 @@ inline __device__ bool bisect_vf_memory_pool(const MP_unit &unit, int split,
 }
 inline __device__ bool bisect_ee_memory_pool(const MP_unit &unit, int split,
                                              CCDConfig *config,
-                                             //   MP_unit bisected[2])
+#ifdef CCD_TOI_PER_QUERY
+                                             Scalar data_toi,
+#endif
                                              MP_unit *out) {
   interval_pair halves(unit.itv[split]); // bisected
 
@@ -517,7 +525,11 @@ inline __device__ bool bisect_ee_memory_pool(const MP_unit &unit, int split,
 
   if (split == 0) // split the time interval
   {
+#ifndef CCD_TOI_PER_QUERY
     if (halves.second.first <= config[0].toi) {
+#else
+    if (halves.second.first <= data_toi) {
+#endif
       unit_id = atomicInc(&config[0].mp_end, config[0].unit_size - 1);
       out[unit_id] = unit;
       out[unit_id].itv[split] = halves.second;
@@ -562,10 +574,15 @@ __global__ void vf_ccd_memory_pool(MP_unit *units, int query_size,
 
   const Scalar time_left = units_in.itv[0].first; // the time of this unit
 
-  // if the time is larger than toi, return
+// if the time is larger than toi, return
+#ifndef CCD_TOI_PER_QUERY
   if (time_left >= config[0].toi) {
     return;
   }
+#else
+  if (time_left >= data_in.toi)
+    return;
+#endif
   // if (results[box_id] > 0)
   // { // if it is sure that have root, then no need to check
   // 	return;
@@ -632,7 +649,12 @@ __global__ void vf_ccd_memory_pool(MP_unit *units, int query_size,
     }
     const int split = split_dimension_memory_pool(data_in, widths);
 
+#ifndef CCD_TOI_PER_QUERY
     const bool sure_in = bisect_vf_memory_pool(units_in, split, config, units);
+#else
+    const bool sure_in =
+        bisect_vf_memory_pool(units_in, split, config, data_in.toi, units);
+#endif
 
     if (sure_in) // in this case, the interval is too small that overflow
                  // happens. it should be rare to happen
@@ -668,10 +690,15 @@ __global__ void ee_ccd_memory_pool(MP_unit *units, int query_size,
 
   const Scalar time_left = units_in.itv[0].first; // the time of this unit
 
-  // if the time is larger than toi, return
+// if the time is larger than toi, return
+#ifndef CCD_TOI_PER_QUERY
   if (time_left >= config[0].toi) {
     return;
   }
+#else
+  if (time_left >= data_in.toi)
+    return;
+#endif
   // if (results[box_id] > 0)
   // { // if it is sure that have root, then no need to check
   // 	return;
@@ -736,7 +763,12 @@ __global__ void ee_ccd_memory_pool(MP_unit *units, int query_size,
     }
     const int split = split_dimension_memory_pool(data_in, widths);
 
+#ifndef CCD_TOI_PER_QUERY
     const bool sure_in = bisect_ee_memory_pool(units_in, split, config, units);
+#else
+    const bool sure_in =
+        bisect_ee_memory_pool(units_in, split, config, data_in.toi, units);
+#endif
 
     if (sure_in) // in this case, the interval is too small that overflow
                  // happens. it should be rare to happen
@@ -808,6 +840,7 @@ void run_memory_pool_ccd(CCDdata *d_data_list, int tmp_nbr, bool is_edge,
   printf("nbr: %i, parallel_nbr %i\n", nbr, parallel_nbr);
   initialize_memory_pool<<<nbr / parallel_nbr + 1, parallel_nbr>>>(d_units,
                                                                    nbr);
+
   cudaDeviceSynchronize();
   if (is_edge) {
     compute_ee_tolerance_memory_pool<<<nbr / parallel_nbr + 1, parallel_nbr>>>(
@@ -894,10 +927,12 @@ void run_memory_pool_ccd(CCDdata *d_data_list, int tmp_nbr, bool is_edge,
     // symbolic_tois.emplace_back(ra.get_numerator_str(),
     //                            ra.get_denominator_str());
     // auto pair = make_pair(ra.get_numerator_str(), ra.get_denominator_str());
-    std::string triple[3] = {std::to_string(data_list[i].id),
+    std::string triple[4] = {std::to_string(data_list[i].aid),
+                             std::to_string(data_list[i].bid),
                              ra.get_numerator_str(), ra.get_denominator_str()};
-    if (data_list[i].toi != 1)
-      printf("nonzero toi %s, %.6f\n", triple[0].c_str(), data_list[i].toi);
+    if (data_list[i].toi <= .00000382)
+      printf("not one toi %s, %s, %e\n", triple[0].c_str(), triple[1].c_str(),
+             data_list[i].toi);
     r.j_object["toi_per_query"].push_back(triple);
   }
   free(data_list);

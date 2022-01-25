@@ -19,6 +19,9 @@
 #include <ccdgpu/record.hpp>
 #include <gpubf/simulation.cuh>
 
+#include <thrust/execution_policy.h>
+#include <thrust/sort.h>
+
 using namespace std;
 using namespace ccd;
 using namespace ccdgpu;
@@ -31,21 +34,22 @@ __global__ void split_overlaps(const int2 *const overlaps,
   if (tid >= N)
     return;
 
-  int minner = min(overlaps[tid].x, overlaps[tid].y);
-  int maxxer = max(overlaps[tid].x, overlaps[tid].y);
-  int3 avids = boxes[minner].vertexIds;
-  int3 bvids = boxes[maxxer].vertexIds;
+  // int minner = min(overlaps[tid].x, overlaps[tid].y);
+  // int maxxer = max(overlaps[tid].x, overlaps[tid].y);
+  int3 avids = boxes[overlaps[tid].x].vertexIds;
+  int3 bvids = boxes[overlaps[tid].y].vertexIds;
 
   if (is_vertex(avids) && is_face(bvids)) {
     int i = atomicAdd(vf_count, 1);
-    vf_overlaps[i].x = minner;
-    vf_overlaps[i].y = maxxer;
+    vf_overlaps[i].x = overlaps[tid].x;
+    vf_overlaps[i].y = overlaps[tid].y;
 
   } else if (is_edge(avids) && is_edge(bvids)) {
     int j = atomicAdd(ee_count, 1);
-    ee_overlaps[j].x = minner;
-    ee_overlaps[j].y = maxxer;
-  }
+    ee_overlaps[j].x = overlaps[tid].x;
+    ee_overlaps[j].y = overlaps[tid].y;
+  } else
+    assert(0);
 }
 
 __global__ void addData(const int2 *const overlaps,
@@ -58,17 +62,20 @@ __global__ void addData(const int2 *const overlaps,
     return;
 
   data[tid].ms = ms;
-#ifdef CCD_TOI_PER_QUERY
-  data[tid].toi = 1;
-  data[tid].id = shift + tid;
-#endif
 
   // printf("vf_count %i, ee_count %i", *vf_count, *ee_count);
 
-  int minner = min(overlaps[tid].x, overlaps[tid].y);
-  int maxxer = max(overlaps[tid].x, overlaps[tid].y);
-  int3 avids = boxes[minner].vertexIds;
-  int3 bvids = boxes[maxxer].vertexIds;
+  // int minner = min(overlaps[tid].x, overlaps[tid].y);
+  // int maxxer = max(overlaps[tid].x, overlaps[tid].y);
+  int3 avids = boxes[overlaps[tid].x].vertexIds;
+  int3 bvids = boxes[overlaps[tid].y].vertexIds;
+
+#ifdef CCD_TOI_PER_QUERY
+  data[tid].toi = 2;
+  // data[tid].id = shift + tid;
+  data[tid].aid = overlaps[tid].x;
+  data[tid].bid = overlaps[tid].y;
+#endif
 
   // data[tid].v0s[0] = a[8 * tid + 0].x;
   // data[tid].v1s[0] = a[8 * tid + 1].x;
@@ -185,6 +192,16 @@ bool is_file_exist(const char *fileName) {
   return infile.good();
 }
 
+// struct sort_aabb_x {
+//   __device__ bool operator()(const int2 &a, const int2 &b) const {
+//     if (a.x < b.x)
+//       return true;
+//     if (a.x == b.x && a.y < b.y)
+//       return true;
+//     return false;
+//   };
+// };
+
 void run_narrowphase(int2 *d_overlaps, Aabb *d_boxes, int count,
                      ccd::Scalar *d_vertices_t0, ccd::Scalar *d_vertices_t1,
                      int Vrows, int threads, int max_iter, ccd::Scalar tol,
@@ -215,6 +232,7 @@ void run_narrowphase(int2 *d_overlaps, Aabb *d_boxes, int count,
     printf("remain %i, start_id %i\n", remain, start_id);
 
     int tmp_nbr = std::min(remain, MAX_OVERLAP_SIZE);
+    // int tmp_nbr = std::min(remain, size / 4);
 
     r.Start("splitOverlaps", /*gpu=*/true);
     cudaMemset(d_vf_count, 0, sizeof(int));
@@ -224,6 +242,10 @@ void run_narrowphase(int2 *d_overlaps, Aabb *d_boxes, int count,
     cudaMalloc((void **)&d_vf_overlaps, sizeof(int2) * tmp_nbr);
     cudaMalloc((void **)&d_ee_overlaps, sizeof(int2) * tmp_nbr);
     gpuErrchk(cudaGetLastError());
+
+    // // hack
+    // thrust::sort(thrust::device, d_overlaps, d_overlaps + count,
+    // sort_aabb_x()); cudaDeviceSynchronize();
 
     split_overlaps<<<tmp_nbr / threads + 1, threads>>>(
         d_overlaps + start_id, d_boxes, tmp_nbr, d_vf_overlaps, d_ee_overlaps,
@@ -239,6 +261,13 @@ void run_narrowphase(int2 *d_overlaps, Aabb *d_boxes, int count,
     cudaMemcpy(&ee_size, d_ee_count, sizeof(int), cudaMemcpyDeviceToHost);
     cout << "vf_size " << vf_size << " ee_size " << ee_size << endl;
     gpuErrchk(cudaGetLastError());
+
+    // hack
+    // thrust::sort(thrust::device, d_vf_overlaps, d_vf_overlaps + vf_size,
+    //              sort_aabb_x());
+    // thrust::sort(thrust::device, d_ee_overlaps, d_ee_overlaps + ee_size,
+    //              sort_aabb_x());
+    // cudaDeviceSynchronize();
 
     CCDdata *d_ee_data_list;
     CCDdata *d_vf_data_list;
@@ -328,6 +357,8 @@ void run_ccd(const vector<Aabb> boxes, const Eigen::MatrixXd &vertices_t0,
   gpuErrchk(cudaMemcpy(&count, d_count, sizeof(int), cudaMemcpyDeviceToHost));
   printf("Count %i\n", count);
   gpuErrchk(cudaGetLastError());
+
+  // cout << "boxes " << boxes.size() << " " << boxes[0].min.x << " " << endl;
 
   // Allocate boxes to GPU
   Aabb *d_boxes;
