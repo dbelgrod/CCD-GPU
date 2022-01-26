@@ -376,7 +376,7 @@ void run_ccd(const vector<Aabb> boxes, const Eigen::MatrixXd &vertices_t0,
   int Vrows = vertices_t0.rows();
   assert(Vrows == vertices_t1.rows());
 
-  int max_iter = 1e6;
+  int max_iter = -1;
   ccd::Scalar tolerance = 1e-6;
 
   run_narrowphase(d_overlaps, d_boxes, count, d_vertices_t0, d_vertices_t1,
