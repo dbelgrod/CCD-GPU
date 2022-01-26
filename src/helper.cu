@@ -31,20 +31,20 @@ __global__ void split_overlaps(const int2 *const overlaps,
   if (tid >= N)
     return;
 
-  // int minner = min(overlaps[tid].x, overlaps[tid].y);
-  // int maxxer = max(overlaps[tid].x, overlaps[tid].y);
-  int3 avids = boxes[overlaps[tid].x].vertexIds;
-  int3 bvids = boxes[overlaps[tid].y].vertexIds;
+  int minner = min(overlaps[tid].x, overlaps[tid].y);
+  int maxxer = max(overlaps[tid].x, overlaps[tid].y);
+  int3 avids = boxes[minner].vertexIds;
+  int3 bvids = boxes[maxxer].vertexIds;
 
   if (is_vertex(avids) && is_face(bvids)) {
     int i = atomicAdd(vf_count, 1);
-    vf_overlaps[i].x = overlaps[tid].x;
-    vf_overlaps[i].y = overlaps[tid].y;
+    vf_overlaps[i].x = minner;
+    vf_overlaps[i].y = maxxer;
 
   } else if (is_edge(avids) && is_edge(bvids)) {
     int j = atomicAdd(ee_count, 1);
-    ee_overlaps[j].x = overlaps[tid].x;
-    ee_overlaps[j].y = overlaps[tid].y;
+    ee_overlaps[j].x = minner;
+    ee_overlaps[j].y = maxxer;
   } else
     assert(0);
 }
@@ -53,7 +53,7 @@ __global__ void addData(const int2 *const overlaps,
                         const ccdgpu::Aabb *const boxes,
                         const ccd::Scalar *const V0,
                         const ccd::Scalar *const V1, int Vrows, int N,
-                        ccd::Scalar ms, ccd::CCDdata *data, int shift) {
+                        ccd::Scalar ms, ccd::CCDdata *data) {
   int tid = threadIdx.x + blockIdx.x * blockDim.x;
   if (tid >= N)
     return;
@@ -62,16 +62,16 @@ __global__ void addData(const int2 *const overlaps,
 
   // spdlog::trace("vf_count {:d}, ee_count {:d}", *vf_count, *ee_count);
 
-  // int minner = min(overlaps[tid].x, overlaps[tid].y);
-  // int maxxer = max(overlaps[tid].x, overlaps[tid].y);
-  int3 avids = boxes[overlaps[tid].x].vertexIds;
-  int3 bvids = boxes[overlaps[tid].y].vertexIds;
+  int minner = min(overlaps[tid].x, overlaps[tid].y);
+  int maxxer = max(overlaps[tid].x, overlaps[tid].y);
+  int3 avids = boxes[minner].vertexIds;
+  int3 bvids = boxes[maxxer].vertexIds;
 
 #ifdef CCD_TOI_PER_QUERY
   data[tid].toi = 2;
   // data[tid].id = shift + tid;
-  data[tid].aid = overlaps[tid].x;
-  data[tid].bid = overlaps[tid].y;
+  data[tid].aid = minner;
+  data[tid].bid = maxxer;
 #endif
 
   // data[tid].v0s[0] = a[8 * tid + 0].x;
@@ -280,12 +280,12 @@ void run_narrowphase(int2 *d_overlaps, Aabb *d_boxes, int count,
 
     addData<<<vf_size / threads + 1, threads>>>(
         d_vf_overlaps, d_boxes, d_vertices_t0, d_vertices_t1, Vrows, vf_size,
-        ms, d_vf_data_list, 0);
+        ms, d_vf_data_list);
     cudaDeviceSynchronize();
     gpuErrchk(cudaGetLastError());
     addData<<<ee_size / threads + 1, threads>>>(
         d_ee_overlaps, d_boxes, d_vertices_t0, d_vertices_t1, Vrows, ee_size,
-        ms, d_ee_data_list, vf_size);
+        ms, d_ee_data_list);
     cudaDeviceSynchronize();
     gpuErrchk(cudaGetLastError());
 

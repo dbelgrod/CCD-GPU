@@ -923,11 +923,12 @@ void run_memory_pool_ccd(CCDdata *d_data_list, int tmp_nbr, bool is_edge,
   cudaMemcpy(data_list, d_data_list, sizeof(CCDdata) * tmp_nbr,
              cudaMemcpyDeviceToHost);
   // std::vector<std::pair<std::string, std::string>> symbolic_tois;
-
+  int tpq_cnt = 0;
   for (size_t i = 0; i < tmp_nbr; i++) {
     ccdgpu::Rational ra(data_list[i].toi);
     if (data_list[i].toi > 1)
       continue;
+    tpq_cnt++;
     // symbolic_tois.emplace_back(ra.get_numerator_str(),
     //                            ra.get_denominator_str());
     // auto pair = make_pair(ra.get_numerator_str(),
@@ -935,12 +936,15 @@ void run_memory_pool_ccd(CCDdata *d_data_list, int tmp_nbr, bool is_edge,
     std::string triple[4] = {std::to_string(data_list[i].aid),
                              std::to_string(data_list[i].bid),
                              ra.get_numerator_str(), ra.get_denominator_str()};
-    if (data_list[i].toi <= .00000382)
-      printf("not one toi %s, %s, %e\n", triple[0].c_str(), triple[1].c_str(),
-             data_list[i].toi);
+    // if (data_list[i].toi <= .00000382)
+    //   printf("not one toi %s, %s, %e\n", triple[0].c_str(),
+    //   triple[1].c_str(),
+    //          data_list[i].toi);
     r.j_object["toi_per_query"].push_back(triple);
   }
+  spdlog::trace("tpq_cnt: {:d}", tpq_cnt);
   free(data_list);
+  cudaDeviceSynchronize();
   // json jtmp(symbolic_tois.begin(), symbolic_tois.end());
   // std::cout << jtmp.dump(4) << std::endl;
   // r.j_object.insert(jtmp.begin(), jtmp.end());
