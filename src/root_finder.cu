@@ -16,7 +16,8 @@ using namespace std;
 inline void gpuAssert(cudaError_t code, const char *file, int line,
                       bool abort = true) {
   if (code != cudaSuccess) {
-    spdlog::error("GPUassert: {} {} {:d}\n", cudaGetErrorString(code), file, line);
+    spdlog::error("GPUassert: {} {} {:d}\n", cudaGetErrorString(code), file,
+                  line);
     if (abort)
       exit(code);
   }
@@ -820,7 +821,7 @@ void run_memory_pool_ccd(CCDdata *d_data_list, int tmp_nbr, bool is_edge,
   config[0].use_ms = use_ms;
   config[0].allow_zero_toi = allow_zero_toi;
   config[0].max_iter = max_iter;
-  spdlog::trace("unit_size : {:d}",  config[0].unit_size);
+  spdlog::trace("unit_size : {:d}", config[0].unit_size);
 
   // int *d_res;
   MP_unit *d_units;
@@ -837,7 +838,7 @@ void run_memory_pool_ccd(CCDdata *d_data_list, int tmp_nbr, bool is_edge,
   gpuErrchk(cudaGetLastError());
   // ccd::Timer timer;
   // timer.start();
-  spdlog::trace("nbr: {:d}, parallel_nbr {:d}",  nbr, parallel_nbr);
+  spdlog::trace("nbr: {:d}, parallel_nbr {:d}", nbr, parallel_nbr);
   initialize_memory_pool<<<nbr / parallel_nbr + 1, parallel_nbr>>>(d_units,
                                                                    nbr);
 
@@ -852,14 +853,14 @@ void run_memory_pool_ccd(CCDdata *d_data_list, int tmp_nbr, bool is_edge,
   cudaDeviceSynchronize();
   gpuErrchk(cudaGetLastError());
 
-  spdlog::trace("MAX_OVERLAP_SIZE: {:d}",  MAX_OVERLAP_SIZE);
-  spdlog::trace("sizeof(Scalar) {:d}",  sizeof(ccd::Scalar));
+  spdlog::trace("MAX_OVERLAP_SIZE: {:d}", MAX_OVERLAP_SIZE);
+  spdlog::trace("sizeof(Scalar) {:d}", sizeof(ccd::Scalar));
 
   int nbr_per_loop = nbr;
   int start;
   int end;
 
-  spdlog::trace("Queue size t0: {:d}",  nbr_per_loop);
+  spdlog::trace("Queue size t0: {:d}", nbr_per_loop);
   while (nbr_per_loop > 0) {
     if (is_edge) {
       ee_ccd_memory_pool<<<nbr_per_loop / parallel_nbr + 1, parallel_nbr>>>(
@@ -882,9 +883,10 @@ void run_memory_pool_ccd(CCDdata *d_data_list, int tmp_nbr, bool is_edge,
     //            cudaMemcpyDeviceToHost);
     // spdlog::trace("toi {}", toi);
     // spdlog::trace("toi {:.4f}",  toi);
-    // spdlog::trace("Start {:d}, End {:d}, Queue size: {:d}",  start, end, nbr_per_loop);
+    // spdlog::trace("Start {:d}, End {:d}, Queue size: {:d}",  start, end,
+    // nbr_per_loop);
     gpuErrchk(cudaGetLastError());
-    spdlog::trace("Queue size: {:d}",  nbr_per_loop);
+    spdlog::trace("Queue size: {:d}", nbr_per_loop);
   }
   cudaDeviceSynchronize();
   // double tt = timer.getElapsedTimeInMicroSec();
@@ -912,7 +914,8 @@ void run_memory_pool_ccd(CCDdata *d_data_list, int tmp_nbr, bool is_edge,
   // delete[] res;
   delete[] config;
   cudaError_t ct = cudaGetLastError();
-  spdlog::trace("\n******************\n{}\n******************",  cudaGetErrorString(ct));
+  spdlog::trace("\n******************\n{}\n******************",
+                cudaGetErrorString(ct));
 
 #ifdef CCD_TOI_PER_QUERY
   CCDdata *data_list = new CCDdata[tmp_nbr];
@@ -923,9 +926,12 @@ void run_memory_pool_ccd(CCDdata *d_data_list, int tmp_nbr, bool is_edge,
 
   for (size_t i = 0; i < tmp_nbr; i++) {
     ccdgpu::Rational ra(data_list[i].toi);
+    if (data_list[i].toi > 1)
+      continue;
     // symbolic_tois.emplace_back(ra.get_numerator_str(),
     //                            ra.get_denominator_str());
-    // auto pair = make_pair(ra.get_numerator_str(), ra.get_denominator_str());
+    // auto pair = make_pair(ra.get_numerator_str(),
+    // ra.get_denominator_str());
     std::string triple[4] = {std::to_string(data_list[i].aid),
                              std::to_string(data_list[i].bid),
                              ra.get_numerator_str(), ra.get_denominator_str()};
