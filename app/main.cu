@@ -10,10 +10,14 @@
 #include <ccdgpu/record.hpp>
 #include <ccdgpu/timer.hpp>
 
+#include <spdlog/spdlog.h>
+
 // using namespace ccdgpu;
 // using namespace ccd;
 
 int main(int argc, char **argv) {
+  spdlog::set_level(static_cast<spdlog::level::level_enum>(0));
+
   vector<char *> compare;
   ccdgpu::Record r;
 
