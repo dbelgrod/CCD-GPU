@@ -942,7 +942,7 @@ void run_memory_pool_ccd(CCDdata *d_data_list, int tmp_nbr, bool is_edge,
     //          data_list[i].toi);
     r.j_object["toi_per_query"].push_back(triple);
   }
-  spdlog::trace("tpq_cnt: {:d}", tpq_cnt);
+  spdlog::debug("tpq_cnt: {:d}", tpq_cnt);
   free(data_list);
   cudaDeviceSynchronize();
   // json jtmp(symbolic_tois.begin(), symbolic_tois.end());

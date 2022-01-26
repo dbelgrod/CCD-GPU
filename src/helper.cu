@@ -224,7 +224,11 @@ void run_narrowphase(int2 *d_overlaps, Aabb *d_boxes, int count,
   while (1) {
 
     int remain = size - start_id;
+#ifndef CCD_TOI_PER_QUERY
     if (remain <= 0 || toi == 0)
+#else
+    if (remain <= 0)
+#endif
       break;
     spdlog::trace("remain {:d}, start_id {:d}", remain, start_id);
 
