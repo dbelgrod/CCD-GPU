@@ -19,7 +19,7 @@ inline void gpuAssert(cudaError_t code, const char *file, int line,
     spdlog::error("GPUassert: {} {} {:d}\n", cudaGetErrorString(code), file,
                   line);
     if (abort)
-      exit(code);
+      throw code;
   }
 }
 
@@ -817,7 +817,7 @@ void run_memory_pool_ccd(CCDdata *d_data_list, int tmp_nbr, bool is_edge,
   config[0].mp_start = 0;
   config[0].mp_remaining = nbr;
   config[0].overflow_flag = 0;
-  config[0].unit_size = nbr * 16; // 2.0 * nbr;
+  config[0].unit_size = 1e7; // std::min(int(1e4) * nbr, int(1e7)); // 2.0 * nbr;
   config[0].use_ms = use_ms;
   config[0].allow_zero_toi = allow_zero_toi;
   config[0].max_iter = max_iter;
@@ -835,7 +835,12 @@ void run_memory_pool_ccd(CCDdata *d_data_list, int tmp_nbr, bool is_edge,
   cudaMalloc(&d_units, unit_size);
   cudaMalloc(&d_config, sizeof(CCDConfig));
   cudaMemcpy(d_config, config, sizeof(CCDConfig), cudaMemcpyHostToDevice);
-  gpuErrchk(cudaGetLastError());
+  try{
+    gpuErrchk(cudaGetLastError());
+  } catch (int code) {
+    spdlog::critical("unit_size : {:d}, tmp_nbr: {:d}",  config[0].unit_size, tmp_nbr);
+    exit(code);
+  }
   // ccd::Timer timer;
   // timer.start();
   spdlog::trace("nbr: {:d}, parallel_nbr {:d}", nbr, parallel_nbr);

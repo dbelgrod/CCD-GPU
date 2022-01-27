@@ -51,6 +51,14 @@ void construct_static_collision_candidates(const Eigen::MatrixXd &V,
                                            vector<ccdgpu::Aabb> &boxes,
                                            double inflation_radius = 0);
 
+void construct_continuous_collision_candidates(const Eigen::MatrixXd &V0,
+                                               const Eigen::MatrixXd &V1,
+                                               const Eigen::MatrixXi &E,
+                                               const Eigen::MatrixXi &F,
+                                               vector<pair<int, int>> &overlaps,
+                                               vector<ccdgpu::Aabb> &boxes,
+                                               double inflation_radius = 0);
+
 ccd::Scalar compute_toi_strategy(const Eigen::MatrixXd &V0,
                                  const Eigen::MatrixXd &V1,
                                  const Eigen::MatrixXi &E,
