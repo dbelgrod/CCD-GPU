@@ -16,8 +16,7 @@ set(LIBIGL_WITH_TRIANGLE          OFF CACHE BOOL "Use Triangle"        )
 set(LIBIGL_WITH_PREDICATES        ON CACHE BOOL "Use exact predicates")
 set(LIBIGL_WITH_XML               OFF CACHE BOOL "Use XML"             )
 set(LIBIGL_WITH_PYTHON            OFF CACHE BOOL "Use Python"          )
-# set(IPC_TOOLKIT_WITH_LOGGER       OFF CACHE BOOL "Enable logger" )
-
+set(CCDGPU_BROADPHASE_PATH ${PROJECT_SOURCE_DIR}/repo/broadphase)
 
 if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
   set(CCDGPU_TOPLEVEL_PROJECT ON)
@@ -25,7 +24,6 @@ else()
   set(CCDGPU_TOPLEVEL_PROJECT OFF)
 endif()
 
-option(CCDGPU_BROADPHASE_PATH "Use local repo" ${CMAKE_SOURCE_DIR}/broadphasegpu)
 
 OPTION(GPUTI_WITH_DOUBLE_PRECISION   "use double precision calculation" ON)
 OPTION(CCD_TOI_PER_QUERY   "record symbolic toi per each query in json" OFF)
