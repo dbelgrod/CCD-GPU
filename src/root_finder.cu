@@ -817,7 +817,7 @@ void run_memory_pool_ccd(CCDdata *d_data_list, int tmp_nbr, bool is_edge,
   config[0].mp_start = 0;
   config[0].mp_remaining = nbr;
   config[0].overflow_flag = 0;
-  config[0].unit_size = std::min(16 * nbr, int(1e7)); // 2.0 * nbr;
+  config[0].unit_size = std::min(16 * nbr, int(5e7)); // 2.0 * nbr;
   config[0].use_ms = use_ms;
   config[0].allow_zero_toi = allow_zero_toi;
   config[0].max_iter = max_iter;

@@ -16,7 +16,7 @@
 // using namespace ccd;
 
 int main(int argc, char **argv) {
-  spdlog::set_level(static_cast<spdlog::level::level_enum>(1));
+  spdlog::set_level(static_cast<spdlog::level::level_enum>(0));
 
   vector<char *> compare;
   ccdgpu::Record r;
