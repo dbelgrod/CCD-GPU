@@ -482,7 +482,7 @@ ccd::Scalar compute_toi_strategy(const Eigen::MatrixXd &V0,
   run_narrowphase(d_overlaps, d_boxes, count, d_vertices_t0, d_vertices_t1,
                   Vrows, threads, /*max_iter=*/max_iter, /*tol=*/tolerance,
                   /*ms=*/min_distance,
-                  /*use_ms=*/true,
+                  /*use_ms=*/false,
                   /*allow_zero_toi=*/true, result_list, earliest_toi, r);
 
   if (earliest_toi < 1e-6) {
