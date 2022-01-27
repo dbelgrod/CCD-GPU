@@ -146,7 +146,7 @@ __device__ __host__ void get_numerical_error_vf_memory_pool(CCDdata &data_in,
                                                             bool use_ms) {
   Scalar vffilter;
   //   bool use_ms = false;
-  if (use_ms) {
+  if (!use_ms) {
 #ifdef GPUTI_USE_DOUBLE_PRECISION
     vffilter = 6.661338147750939e-15;
 #else
@@ -204,7 +204,7 @@ __device__ __host__ void get_numerical_error_ee_memory_pool(CCDdata &data_in,
                                                             bool use_ms) {
   Scalar vffilter;
   //   bool use_ms = false;
-  if (use_ms) {
+  if (!use_ms) {
 
 #ifdef GPUTI_USE_DOUBLE_PRECISION
     vffilter = 6.217248937900877e-15;
