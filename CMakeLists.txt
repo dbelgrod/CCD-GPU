@@ -25,6 +25,8 @@ else()
   set(CCDGPU_TOPLEVEL_PROJECT OFF)
 endif()
 
+option(CCDGPU_BROADPHASE_PATH "Use local repo" ${CMAKE_SOURCE_DIR}/broadphasegpu)
+
 OPTION(GPUTI_WITH_DOUBLE_PRECISION   "use double precision calculation" ON)
 OPTION(CCD_TOI_PER_QUERY   "record symbolic toi per each query in json" OFF)
 
