@@ -18,7 +18,7 @@
 int main(int argc, char **argv) {
   spdlog::set_level(static_cast<spdlog::level::level_enum>(0));
 
-  vector<char *> compare;
+  std::vector<char *> compare;
   ccdgpu::Record r;
 
   char *filet0;
@@ -30,7 +30,7 @@ int main(int argc, char **argv) {
   else // static CD
     filet1 = argv[1];
 
-  vector<ccdgpu::Aabb> boxes;
+  std::vector<ccdgpu::Aabb> boxes;
   Eigen::MatrixXd vertices_t0;
   Eigen::MatrixXd vertices_t1;
   Eigen::MatrixXi faces;
@@ -72,8 +72,8 @@ int main(int argc, char **argv) {
       break;
     }
   }
-  vector<pair<int, int>> overlaps;
-  vector<int> result_list;
+  std::vector<std::pair<int, int>> overlaps;
+  std::vector<int> result_list;
   ccd::Scalar toi;
 
   bool use_ms = false;
@@ -91,14 +91,14 @@ int main(int argc, char **argv) {
   run_ccd(boxes, vertices_t0, vertices_t1, r, N, nbox, parallel, devcount,
           overlaps, result_list, use_ms, allow_zero_toi, min_distance, toi);
   // r.Print();
-  // cout << r.j_object["run_memory_pool_ccd (narrowphase)"];
+  // std::cout << r.j_object["run_memory_pool_ccd (narrowphase)"];
 
-  // cout << "result_list " << result_list.size() << endl;
+  // std::cout << "result_list " << result_list.size() << std::endl;
   // for (int i = 0; i < result_list.size(); i++)
   //   result_list[i] = 1;
 
   for (auto i : compare) {
     compare_mathematica(overlaps, result_list, i);
   }
-  cout << endl;
+  std::cout << std::endl;
 }

@@ -59,12 +59,12 @@ compute_face_vertex_tolerance_memory_pool(CCDdata &data_in,
     p000[i] = data_in.v0s[i] - data_in.v1s[i];
     p001[i] = data_in.v0s[i] - data_in.v3s[i];
     p011[i] =
-        data_in.v0s[i] - (data_in.v2s[i] + data_in.v3s[i] - data_in.v1s[i]);
+      data_in.v0s[i] - (data_in.v2s[i] + data_in.v3s[i] - data_in.v1s[i]);
     p010[i] = data_in.v0s[i] - data_in.v2s[i];
     p100[i] = data_in.v0e[i] - data_in.v1e[i];
     p101[i] = data_in.v0e[i] - data_in.v3e[i];
     p111[i] =
-        data_in.v0e[i] - (data_in.v2e[i] + data_in.v3e[i] - data_in.v1e[i]);
+      data_in.v0e[i] - (data_in.v2e[i] + data_in.v3e[i] - data_in.v1e[i]);
     p110[i] = data_in.v0e[i] - data_in.v2e[i];
   }
   Scalar dl = 0;
@@ -292,13 +292,13 @@ __device__ Scalar calculate_vf(const CCDdata &data_in,
 __device__ Scalar calculate_ee(const CCDdata &data_in,
                                const BoxPrimatives &bp) {
   Scalar edge0_vertex0 =
-      (data_in.v0e[bp.dim] - data_in.v0s[bp.dim]) * bp.t + data_in.v0s[bp.dim];
+    (data_in.v0e[bp.dim] - data_in.v0s[bp.dim]) * bp.t + data_in.v0s[bp.dim];
   Scalar edge0_vertex1 =
-      (data_in.v1e[bp.dim] - data_in.v1s[bp.dim]) * bp.t + data_in.v1s[bp.dim];
+    (data_in.v1e[bp.dim] - data_in.v1s[bp.dim]) * bp.t + data_in.v1s[bp.dim];
   Scalar edge1_vertex0 =
-      (data_in.v2e[bp.dim] - data_in.v2s[bp.dim]) * bp.t + data_in.v2s[bp.dim];
+    (data_in.v2e[bp.dim] - data_in.v2s[bp.dim]) * bp.t + data_in.v2s[bp.dim];
   Scalar edge1_vertex1 =
-      (data_in.v3e[bp.dim] - data_in.v3s[bp.dim]) * bp.t + data_in.v3s[bp.dim];
+    (data_in.v3e[bp.dim] - data_in.v3s[bp.dim]) * bp.t + data_in.v3s[bp.dim];
   Scalar result = ((edge0_vertex1 - edge0_vertex0) * bp.u + edge0_vertex0) -
                   ((edge1_vertex1 - edge1_vertex0) * bp.v + edge1_vertex0);
 
@@ -306,7 +306,7 @@ __device__ Scalar calculate_ee(const CCDdata &data_in,
 }
 
 inline __device__ bool Origin_in_vf_inclusion_function_memory_pool(
-    const CCDdata &data_in, MP_unit &unit, Scalar &true_tol, bool &box_in) {
+  const CCDdata &data_in, MP_unit &unit, Scalar &true_tol, bool &box_in) {
   box_in = true;
   true_tol = 0.0;
   BoxPrimatives bp;
@@ -346,7 +346,7 @@ inline __device__ bool Origin_in_vf_inclusion_function_memory_pool(
   return true;
 }
 inline __device__ bool Origin_in_ee_inclusion_function_memory_pool(
-    const CCDdata &data_in, MP_unit &unit, Scalar &true_tol, bool &box_in) {
+  const CCDdata &data_in, MP_unit &unit, Scalar &true_tol, bool &box_in) {
   box_in = true;
   true_tol = 0.0;
   BoxPrimatives bp;
@@ -605,7 +605,7 @@ __global__ void vf_ccd_memory_pool(MP_unit *units, int query_size,
   bool box_in;
 
   const bool zero_in = Origin_in_vf_inclusion_function_memory_pool(
-      data_in, units_in, true_tol, box_in);
+    data_in, units_in, true_tol, box_in);
   if (zero_in) {
     widths[0] = units_in.itv[0].second - units_in.itv[0].first;
     widths[1] = units_in.itv[1].second - units_in.itv[1].first;
@@ -654,7 +654,7 @@ __global__ void vf_ccd_memory_pool(MP_unit *units, int query_size,
     const bool sure_in = bisect_vf_memory_pool(units_in, split, config, units);
 #else
     const bool sure_in =
-        bisect_vf_memory_pool(units_in, split, config, data_in.toi, units);
+      bisect_vf_memory_pool(units_in, split, config, data_in.toi, units);
 #endif
 
     if (sure_in) // in this case, the interval is too small that overflow
@@ -721,7 +721,7 @@ __global__ void ee_ccd_memory_pool(MP_unit *units, int query_size,
   bool box_in;
 
   const bool zero_in = Origin_in_ee_inclusion_function_memory_pool(
-      data_in, units_in, true_tol, box_in);
+    data_in, units_in, true_tol, box_in);
   if (zero_in) {
     widths[0] = units_in.itv[0].second - units_in.itv[0].first;
     widths[1] = units_in.itv[1].second - units_in.itv[1].first;
@@ -768,7 +768,7 @@ __global__ void ee_ccd_memory_pool(MP_unit *units, int query_size,
     const bool sure_in = bisect_ee_memory_pool(units_in, split, config, units);
 #else
     const bool sure_in =
-        bisect_ee_memory_pool(units_in, split, config, data_in.toi, units);
+      bisect_ee_memory_pool(units_in, split, config, data_in.toi, units);
 #endif
 
     if (sure_in) // in this case, the interval is too small that overflow
@@ -791,9 +791,9 @@ __global__ void shift_queue_pointers(CCDConfig *config) {
   config[0].mp_start = config[0].mp_start % config[0].unit_size;
   config[0].mp_remaining = (config[0].mp_end - config[0].mp_start);
   config[0].mp_remaining =
-      config[0].mp_remaining < 0
-          ? config[0].mp_end + config[0].unit_size - config[0].mp_start
-          : config[0].mp_remaining;
+    config[0].mp_remaining < 0
+      ? config[0].mp_end + config[0].unit_size - config[0].mp_start
+      : config[0].mp_remaining;
 }
 
 void run_memory_pool_ccd(CCDdata *d_data_list, int tmp_nbr, bool is_edge,
@@ -845,10 +845,10 @@ void run_memory_pool_ccd(CCDdata *d_data_list, int tmp_nbr, bool is_edge,
   cudaDeviceSynchronize();
   if (is_edge) {
     compute_ee_tolerance_memory_pool<<<nbr / parallel_nbr + 1, parallel_nbr>>>(
-        d_data_list, d_config, nbr);
+      d_data_list, d_config, nbr);
   } else {
     compute_vf_tolerance_memory_pool<<<nbr / parallel_nbr + 1, parallel_nbr>>>(
-        d_data_list, d_config, nbr);
+      d_data_list, d_config, nbr);
   }
   cudaDeviceSynchronize();
   gpuErrchk(cudaGetLastError());
@@ -864,10 +864,10 @@ void run_memory_pool_ccd(CCDdata *d_data_list, int tmp_nbr, bool is_edge,
   while (nbr_per_loop > 0) {
     if (is_edge) {
       ee_ccd_memory_pool<<<nbr_per_loop / parallel_nbr + 1, parallel_nbr>>>(
-          d_units, nbr, d_data_list, d_config);
+        d_units, nbr, d_data_list, d_config);
     } else {
       vf_ccd_memory_pool<<<nbr_per_loop / parallel_nbr + 1, parallel_nbr>>>(
-          d_units, nbr, d_data_list, d_config);
+        d_units, nbr, d_data_list, d_config);
     }
     cudaDeviceSynchronize();
     gpuErrchk(cudaGetLastError());

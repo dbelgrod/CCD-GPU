@@ -6,7 +6,7 @@
 
 #include <spdlog/spdlog.h>
 
-// using namespace ccdgpu;
+#include <vector>
 
 #define Vec3Conv(v)                                                            \
   { v[0], v[1], v[2] }
@@ -16,7 +16,8 @@
 inline void gpuAssert(cudaError_t code, const char *file, int line,
                       bool abort = true) {
   if (code != cudaSuccess) {
-    spdlog::error("GPUassert: {} {} {:d}", cudaGetErrorString(code), file, line);
+    spdlog::error("GPUassert: {} {} {:d}", cudaGetErrorString(code), file,
+                  line);
     if (abort)
       exit(code);
   }
@@ -31,33 +32,31 @@ __global__ void addData(const int2 *const overlaps,
 
 bool is_file_exist(const char *fileName);
 
-void run_ccd(const vector<Aabb> boxes, const Eigen::MatrixXd &vertices_t0,
+void run_ccd(const std::vector<ccdgpu::Aabb> boxes,
+             const Eigen::MatrixXd &vertices_t0,
              const Eigen::MatrixXd &vertices_t1, ccdgpu::Record &r, int N,
              int &nbox, int &parallel, int &devcount,
-             vector<pair<int, int>> &overlaps, vector<int> &result_list,
-             bool &use_ms, bool &allow_zero_toi, ccd::Scalar &min_distance,
-             ccd::Scalar &toi);
+             std::vector<std::pair<int, int>> &overlaps,
+             std::vector<int> &result_list, bool &use_ms, bool &allow_zero_toi,
+             ccd::Scalar &min_distance, ccd::Scalar &toi);
 
-void run_narrowphase(int2 *d_overlaps, Aabb *d_boxes, int count,
+void run_narrowphase(int2 *d_overlaps, ccdgpu::Aabb *d_boxes, int count,
                      ccd::Scalar *d_vertices_t0, ccd::Scalar *d_vertices_t1,
                      int Vrows, int threads, int max_iter, ccd::Scalar tol,
                      ccd::Scalar ms, bool use_ms, bool allow_zero_toi,
-                     vector<int> &result_list, ccd::Scalar &toi, Record &r);
+                     std::vector<int> &result_list, ccd::Scalar &toi,
+                     ccdgpu::Record &r);
 
-void construct_static_collision_candidates(const Eigen::MatrixXd &V,
-                                           const Eigen::MatrixXi &E,
-                                           const Eigen::MatrixXi &F,
-                                           vector<pair<int, int>> &overlaps,
-                                           vector<ccdgpu::Aabb> &boxes,
-                                           double inflation_radius = 0);
+void construct_static_collision_candidates(
+  const Eigen::MatrixXd &V, const Eigen::MatrixXi &E, const Eigen::MatrixXi &F,
+  std::vector<std::pair<int, int>> &overlaps, std::vector<ccdgpu::Aabb> &boxes,
+  double inflation_radius = 0);
 
-void construct_continuous_collision_candidates(const Eigen::MatrixXd &V0,
-                                               const Eigen::MatrixXd &V1,
-                                               const Eigen::MatrixXi &E,
-                                               const Eigen::MatrixXi &F,
-                                               vector<pair<int, int>> &overlaps,
-                                               vector<ccdgpu::Aabb> &boxes,
-                                               double inflation_radius = 0);
+void construct_continuous_collision_candidates(
+  const Eigen::MatrixXd &V0, const Eigen::MatrixXd &V1,
+  const Eigen::MatrixXi &E, const Eigen::MatrixXi &F,
+  std::vector<std::pair<int, int>> &overlaps, std::vector<ccdgpu::Aabb> &boxes,
+  double inflation_radius = 0);
 
 ccd::Scalar compute_toi_strategy(const Eigen::MatrixXd &V0,
                                  const Eigen::MatrixXd &V1,

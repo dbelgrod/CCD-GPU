@@ -5,7 +5,6 @@
 #include <ccdgpu/timer.hpp>
 #include <vector>
 
-
 // #include <gputi/book.h>
 namespace ccd {
 // can be removed once device-only run_memory_pool_ccd copied over

@@ -1,12 +1,7 @@
 #include <ccdgpu/CType.cuh>
 #include <ccdgpu/helper.cuh>
 
-#include <assert.h>
-#include <ctype.h>
-#include <math.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
+#include <fstream>
 
 // #include <gputi/book.h>
 // #include <gputi/io.h>
@@ -185,7 +180,7 @@ __global__ void addData(const int2 *const overlaps,
 }
 
 bool is_file_exist(const char *fileName) {
-  ifstream infile(fileName);
+  std::ifstream infile(fileName);
   return infile.good();
 }
 
@@ -249,8 +244,8 @@ void run_narrowphase(int2 *d_overlaps, Aabb *d_boxes, int count,
     // sort_aabb_x()); cudaDeviceSynchronize();
 
     split_overlaps<<<tmp_nbr / threads + 1, threads>>>(
-        d_overlaps + start_id, d_boxes, tmp_nbr, d_vf_overlaps, d_ee_overlaps,
-        d_vf_count, d_ee_count);
+      d_overlaps + start_id, d_boxes, tmp_nbr, d_vf_overlaps, d_ee_overlaps,
+      d_vf_count, d_ee_count);
     cudaDeviceSynchronize();
     gpuErrchk(cudaGetLastError());
     r.Stop();
@@ -283,13 +278,13 @@ void run_narrowphase(int2 *d_overlaps, Aabb *d_boxes, int count,
     gpuErrchk(cudaGetLastError());
 
     addData<<<vf_size / threads + 1, threads>>>(
-        d_vf_overlaps, d_boxes, d_vertices_t0, d_vertices_t1, Vrows, vf_size,
-        ms, d_vf_data_list);
+      d_vf_overlaps, d_boxes, d_vertices_t0, d_vertices_t1, Vrows, vf_size, ms,
+      d_vf_data_list);
     cudaDeviceSynchronize();
     gpuErrchk(cudaGetLastError());
     addData<<<ee_size / threads + 1, threads>>>(
-        d_ee_overlaps, d_boxes, d_vertices_t0, d_vertices_t1, Vrows, ee_size,
-        ms, d_ee_data_list);
+      d_ee_overlaps, d_boxes, d_vertices_t0, d_vertices_t1, Vrows, ee_size, ms,
+      d_ee_data_list);
     cudaDeviceSynchronize();
     gpuErrchk(cudaGetLastError());
 
@@ -425,12 +420,12 @@ void construct_static_collision_candidates(const Eigen::MatrixXd &V,
 }
 
 void construct_continuous_collision_candidates(const Eigen::MatrixXd &V0,
-                                          const Eigen::MatrixXd &V1,
-                                              const Eigen::MatrixXi &E,
-                                              const Eigen::MatrixXi &F,
-                                              vector<pair<int, int>> &overlaps,
-                                              vector<ccdgpu::Aabb> &boxes,
-                                              double inflation_radius) {
+                                               const Eigen::MatrixXd &V1,
+                                               const Eigen::MatrixXi &E,
+                                               const Eigen::MatrixXi &F,
+                                               vector<pair<int, int>> &overlaps,
+                                               vector<ccdgpu::Aabb> &boxes,
+                                               double inflation_radius) {
   constructBoxes(V0, V1, E, F, boxes,
                  static_cast<ccdgpu::Scalar>(inflation_radius));
   int N = boxes.size();
