@@ -2,6 +2,7 @@
 #include <ccdgpu/helper.cuh>
 
 #include <fstream>
+#include <iostream>
 
 // #include <gputi/book.h>
 // #include <gputi/io.h>
@@ -401,8 +402,7 @@ void construct_static_collision_candidates(const Eigen::MatrixXd &V,
                                            vector<pair<int, int>> &overlaps,
                                            vector<ccdgpu::Aabb> &boxes,
                                            double inflation_radius) {
-  constructBoxes(V, V, E, F, boxes,
-                 static_cast<ccdgpu::Scalar>(inflation_radius));
+  constructBoxes(V, V, E, F, boxes, -1, inflation_radius);
   int N = boxes.size();
   int nbox = 0;
   int devcount = 1;
@@ -426,8 +426,7 @@ void construct_continuous_collision_candidates(const Eigen::MatrixXd &V0,
                                                vector<pair<int, int>> &overlaps,
                                                vector<ccdgpu::Aabb> &boxes,
                                                double inflation_radius) {
-  constructBoxes(V0, V1, E, F, boxes,
-                 static_cast<ccdgpu::Scalar>(inflation_radius));
+  constructBoxes(V0, V1, E, F, boxes, -1, inflation_radius);
   int N = boxes.size();
   int nbox = 0;
   int devcount = 1;
