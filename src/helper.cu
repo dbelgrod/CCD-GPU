@@ -402,21 +402,8 @@ void construct_static_collision_candidates(const Eigen::MatrixXd &V,
                                            vector<pair<int, int>> &overlaps,
                                            vector<ccdgpu::Aabb> &boxes,
                                            double inflation_radius) {
-  constructBoxes(V, V, E, F, boxes, -1, inflation_radius);
-  int N = boxes.size();
-  int nbox = 0;
-  int devcount = 1;
-
-  int2 *d_overlaps;
-  int *d_count;
-  int threads = 32; // HARDCODING THREADS FOR NOW
-  run_sweep_sharedqueue(boxes.data(), N, nbox, overlaps, d_overlaps, d_count,
-                        threads, devcount, /*keep_cpu_overlaps=*/true);
-  gpuErrchk(cudaGetLastError());
-
-  spdlog::trace("Overlaps size {:d}", overlaps.size());
-  cudaFree(d_overlaps);
-  cudaFree(d_count);
+  construct_continuous_collision_candidates(V, V, E, F, overlaps, boxes,
+                                            inflation_radius);
 }
 
 void construct_continuous_collision_candidates(const Eigen::MatrixXd &V0,
