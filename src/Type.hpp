@@ -110,10 +110,10 @@ public:
   }
 };
 
-class CCDdata {
+class CCDData {
 public:
-  __host__ __device__ CCDdata(){};
-  // CCDdata(const std::array<std::array<Scalar,3>,8>&input);
+  __host__ __device__ CCDData(){};
+  // CCDData(const std::array<std::array<Scalar,3>,8>&input);
   Scalar v0s[3];
   Scalar v1s[3];
   Scalar v2s[3];
@@ -132,7 +132,7 @@ public:
 #endif
   int nbr_checks = 0;
 
-  __device__ __host__ CCDdata &operator=(const CCDdata &x) {
+  __device__ __host__ CCDData &operator=(const CCDData &x) {
     if (this == &x)
       return *this;
     for (int i = 0; i < 3; i++) {
@@ -161,7 +161,7 @@ public:
   Scalar v;
   __device__ void calculate_tuv(const MP_unit &unit);
 };
-CCDdata array_to_ccd(const std::array<std::array<Scalar, 3>, 8> &a);
-__device__ void single_test_wrapper(CCDdata *vfdata, bool &result);
-__device__ Scalar calculate_ee(const CCDdata &data_in, const BoxPrimatives &bp);
+CCDData array_to_ccd(const std::array<std::array<Scalar, 3>, 8> &a);
+__device__ void single_test_wrapper(CCDData *vfdata, bool &result);
+__device__ Scalar calculate_ee(const CCDData &data_in, const BoxPrimatives &bp);
 } // namespace ccd

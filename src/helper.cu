@@ -16,8 +16,31 @@
 #include <spdlog/spdlog.h>
 
 using namespace std;
-using namespace ccd;
 using namespace ccdgpu;
+
+namespace ccd::gpu {
+
+#define gpuErrchk(ans)                                                         \
+  { gpuAssert((ans), __FILE__, __LINE__); }
+
+inline void gpuAssert(cudaError_t code, const char *file, int line,
+                      bool abort = true) {
+  if (code != cudaSuccess) {
+    spdlog::error("GPUassert: {} {} {:d}", cudaGetErrorString(code), file,
+                  line);
+    if (abort)
+      exit(code);
+  }
+}
+
+// Allocates and copies data to GPU
+template <typename T> T *copy_to_gpu(const T *cpu_data, const int size) {
+  T *gpu_data;
+  cudaMalloc((void **)&gpu_data, sizeof(T) * size);
+  cudaMemcpy(gpu_data, cpu_data, sizeof(T) * size, cudaMemcpyHostToDevice);
+  gpuErrchk(cudaGetLastError());
+  return gpu_data;
+}
 
 __global__ void split_overlaps(const int2 *const overlaps,
                                const ccdgpu::Aabb *const boxes, int N,
@@ -36,20 +59,18 @@ __global__ void split_overlaps(const int2 *const overlaps,
     int i = atomicAdd(vf_count, 1);
     vf_overlaps[i].x = minner;
     vf_overlaps[i].y = maxxer;
-
   } else if (is_edge(avids) && is_edge(bvids)) {
     int j = atomicAdd(ee_count, 1);
     ee_overlaps[j].x = minner;
     ee_overlaps[j].y = maxxer;
   } else
-    assert(0);
+    assert(false);
 }
 
 __global__ void addData(const int2 *const overlaps,
-                        const ccdgpu::Aabb *const boxes,
-                        const ccd::Scalar *const V0,
-                        const ccd::Scalar *const V1, int Vrows, int N,
-                        ccd::Scalar ms, ccd::CCDdata *data) {
+                        const ccdgpu::Aabb *const boxes, const Scalar *const V0,
+                        const Scalar *const V1, int Vrows, int N, Scalar ms,
+                        CCDData *data) {
   int tid = threadIdx.x + blockIdx.x * blockDim.x;
   if (tid >= N)
     return;
@@ -64,43 +85,13 @@ __global__ void addData(const int2 *const overlaps,
   int3 bvids = boxes[maxxer].vertexIds;
 
 #ifdef CCD_TOI_PER_QUERY
-  data[tid].toi = 2;
+  data[tid].toi = std::numeric_limits<Scalar>::infinity();
   // data[tid].id = shift + tid;
   data[tid].aid = minner;
   data[tid].bid = maxxer;
 #endif
 
-  // data[tid].v0s[0] = a[8 * tid + 0].x;
-  // data[tid].v1s[0] = a[8 * tid + 1].x;
-  // data[tid].v2s[0] = a[8 * tid + 2].x;
-  // data[tid].v3s[0] = a[8 * tid + 3].x;
-  // data[tid].v0e[0] = a[8 * tid + 4].x;
-  // data[tid].v1e[0] = a[8 * tid + 5].x;
-  // data[tid].v2e[0] = a[8 * tid + 6].x;
-  // data[tid].v3e[0] = a[8 * tid + 7].x;
-
-  // data[tid].v0s[1] = a[8 * tid + 0].y;
-  // data[tid].v1s[1] = a[8 * tid + 1].y;
-  // data[tid].v2s[1] = a[8 * tid + 2].y;
-  // data[tid].v3s[1] = a[8 * tid + 3].y;
-  // data[tid].v0e[1] = a[8 * tid + 4].y;
-  // data[tid].v1e[1] = a[8 * tid + 5].y;
-  // data[tid].v2e[1] = a[8 * tid + 6].y;
-  // data[tid].v3e[1] = a[8 * tid + 7].y;
-
-  // data[tid].v0s[2] = a[8 * tid + 0].z;
-  // data[tid].v1s[2] = a[8 * tid + 1].z;
-  // data[tid].v2s[2] = a[8 * tid + 2].z;
-  // data[tid].v3s[2] = a[8 * tid + 3].z;
-  // data[tid].v0e[2] = a[8 * tid + 4].z;
-  // data[tid].v1e[2] = a[8 * tid + 5].z;
-  // data[tid].v2e[2] = a[8 * tid + 6].z;
-  // data[tid].v3e[2] = a[8 * tid + 7].z;
-
   if (is_vertex(avids) && is_face(bvids)) {
-    // int i = atomicAdd(vf_count, 1);
-    // queries[8 * tid + 0] = ccd::make_Scalar3(
-    //     V0[avids.x + 0], V0[avids.x + Vrows], V0[avids.x + 2 * Vrows]);
     for (size_t i = 0; i < 3; i++) {
       data[tid].v0s[i] = V0[avids.x + i * Vrows];
       data[tid].v1s[i] = V0[bvids.x + i * Vrows];
@@ -111,29 +102,7 @@ __global__ void addData(const int2 *const overlaps,
       data[tid].v2e[i] = V1[bvids.y + i * Vrows];
       data[tid].v3e[i] = V1[bvids.z + i * Vrows];
     }
-
-    // queries[8 * tid + 1] = ccd::make_Scalar3(
-    //     V0[bvids.x + 0], V0[bvids.x + Vrows], V0[bvids.x + 2 * Vrows]);
-    // queries[8 * tid + 2] = ccd::make_Scalar3(
-    //     V0[bvids.y + 0], V0[bvids.y + Vrows], V0[bvids.y + 2 * Vrows]);
-
-    // queries[8 * tid + 3] = ccd::make_Scalar3(
-    //     V0[bvids.z + 0], V0[bvids.z + Vrows], V0[bvids.z + 2 * Vrows]);
-    // queries[8 * tid + 4] = ccd::make_Scalar3(
-    //     V1[avids.x + 0], V1[avids.x + Vrows], V1[avids.x + 2 * Vrows]);
-    // ;
-    // queries[8 * tid + 5] = ccd::make_Scalar3(
-    //     V1[bvids.x + 0], V1[bvids.x + Vrows], V1[bvids.x + 2 * Vrows]);
-    // ;
-    // queries[8 * tid + 6] = ccd::make_Scalar3(
-    //     V1[bvids.y + 0], V1[bvids.y + Vrows], V1[bvids.y + 2 * Vrows]);
-    // ;
-    // queries[8 * tid + 7] = ccd::make_Scalar3(
-    //     V1[bvids.z + 0], V1[bvids.z + Vrows], V1[bvids.z + 2 * Vrows]);
-    // ;
   } else if (is_edge(avids) && is_edge(bvids)) {
-    // int j = atomicAdd(ee_count, 1);
-
     for (size_t i = 0; i < 3; i++) {
       data[tid].v0s[i] = V0[avids.x + i * Vrows];
       data[tid].v1s[i] = V0[avids.y + i * Vrows];
@@ -144,64 +113,18 @@ __global__ void addData(const int2 *const overlaps,
       data[tid].v2e[i] = V1[bvids.x + i * Vrows];
       data[tid].v3e[i] = V1[bvids.y + i * Vrows];
     }
-
-    // queries[8 * tid + 0] = ccd::make_Scalar3(
-    //     V0[avids.x + 0], V0[avids.x + Vrows], V0[avids.x + 2 * Vrows]);
-    // ;
-
-    // queries[8 * tid + 1] = ccd::make_Scalar3(
-    //     V0[avids.y + 0], V0[avids.y + Vrows], V0[avids.y + 2 * Vrows]);
-    // ;
-
-    // queries[8 * tid + 2] = ccd::make_Scalar3(
-    //     V0[bvids.x + 0], V0[bvids.x + Vrows], V0[bvids.x + 2 * Vrows]);
-    // ;
-
-    // queries[8 * tid + 3] = ccd::make_Scalar3(
-    //     V0[bvids.y + 0], V0[bvids.y + Vrows], V0[bvids.y + 2 * Vrows]);
-    // ;
-
-    // queries[8 * tid + 4] = ccd::make_Scalar3(
-    //     V1[avids.x + 0], V1[avids.x + Vrows], V1[avids.x + 2 * Vrows]);
-    // ;
-
-    // queries[8 * tid + 5] = ccd::make_Scalar3(
-    //     V1[avids.y + 0], V1[avids.y + Vrows], V1[avids.y + 2 * Vrows]);
-    // ;
-
-    //   queries[8 * tid + 6] = ccd::make_Scalar3(
-    //       V1[bvids.x + 0], V1[bvids.x + Vrows], V1[bvids.x + 2 * Vrows]);
-    //   ;
-
-    //   queries[8 * tid + 7] = ccd::make_Scalar3(
-    //       V1[bvids.y + 0], V1[bvids.y + Vrows], V1[bvids.y + 2 * Vrows]);
-    //   ;
   } else
-    assert(0);
+    assert(false);
 }
-
-bool is_file_exist(const char *fileName) {
-  std::ifstream infile(fileName);
-  return infile.good();
-}
-
-// struct sort_aabb_x {
-//   __device__ bool operator()(const int2 &a, const int2 &b) const {
-//     if (a.x < b.x)
-//       return true;
-//     if (a.x == b.x && a.y < b.y)
-//       return true;
-//     return false;
-//   };
-// };
 
 void run_narrowphase(int2 *d_overlaps, Aabb *d_boxes, int count,
-                     ccd::Scalar *d_vertices_t0, ccd::Scalar *d_vertices_t1,
-                     int Vrows, int threads, int max_iter, ccd::Scalar tol,
-                     ccd::Scalar ms, bool use_ms, bool allow_zero_toi,
-                     vector<int> &result_list, ccd::Scalar &toi, Record &r) {
-
+                     Scalar *d_vertices_t0, Scalar *d_vertices_t1, int Vrows,
+                     int threads, int max_iter, Scalar tol, Scalar ms,
+                     bool allow_zero_toi, vector<int> &result_list, Scalar &toi,
+                     Record &r) {
   toi = 1.0;
+
+  bool use_ms = ms > 0;
 
   int *d_vf_count;
   int *d_ee_count;
@@ -217,15 +140,12 @@ void run_narrowphase(int2 *d_overlaps, Aabb *d_boxes, int count,
   // double tavg = 0;
   // double tmp_tall = 0;
 
-  while (1) {
-
-    int remain = size - start_id;
+  int remain;
+  while ((remain = size - start_id) > 0
 #ifndef CCD_TOI_PER_QUERY
-    if (remain <= 0 || toi == 0)
-#else
-    if (remain <= 0)
+         && toi > 0
 #endif
-      break;
+  ) {
     spdlog::trace("remain {:d}, start_id {:d}", remain, start_id);
 
     int tmp_nbr = std::min(remain, MAX_OVERLAP_SIZE);
@@ -266,11 +186,11 @@ void run_narrowphase(int2 *d_overlaps, Aabb *d_boxes, int count,
     //              sort_aabb_x());
     // cudaDeviceSynchronize();
 
-    CCDdata *d_ee_data_list;
-    CCDdata *d_vf_data_list;
+    CCDData *d_ee_data_list;
+    CCDData *d_vf_data_list;
 
-    size_t ee_data_size = sizeof(CCDdata) * ee_size;
-    size_t vf_data_size = sizeof(CCDdata) * vf_size;
+    size_t ee_data_size = sizeof(CCDData) * ee_size;
+    size_t vf_data_size = sizeof(CCDData) * vf_size;
 
     cudaMalloc((void **)&d_ee_data_list, ee_data_size);
     cudaMalloc((void **)&d_vf_data_list, vf_data_size);
@@ -330,11 +250,12 @@ void run_narrowphase(int2 *d_overlaps, Aabb *d_boxes, int count,
 }
 
 void run_ccd(const vector<Aabb> boxes, const Eigen::MatrixXd &vertices_t0,
-             const Eigen::MatrixXd &vertices_t1, ccdgpu::Record &r, int N,
-             int &nbox, int &parallel, int &devcount,
-             vector<pair<int, int>> &overlaps, vector<int> &result_list,
-             bool &use_ms, bool &allow_zero_toi, ccd::Scalar &ms,
-             ccd::Scalar &toi) {
+             const Eigen::MatrixXd &vertices_t1, Record &r, int N, int &nbox,
+             int &parallel, int &devcount, vector<pair<int, int>> &overlaps,
+             vector<int> &result_list, bool &allow_zero_toi, Scalar &ms,
+             Scalar &toi) {
+  bool use_ms = ms > 0;
+
   int2 *d_overlaps;
   int *d_count;
   int threads = 32; // HARDCODING THREADS FOR NOW
@@ -356,32 +277,23 @@ void run_ccd(const vector<Aabb> boxes, const Eigen::MatrixXd &vertices_t0,
   // cout << "boxes " << boxes.size() << " " << boxes[0].min.x << " " << endl;
 
   // Allocate boxes to GPU
-  Aabb *d_boxes;
-  cudaMalloc((void **)&d_boxes, sizeof(Aabb) * N);
-  cudaMemcpy(d_boxes, boxes.data(), sizeof(Aabb) * N, cudaMemcpyHostToDevice);
-  gpuErrchk(cudaGetLastError());
+  Aabb *d_boxes = copy_to_gpu(boxes.data(), boxes.size());
   r.Stop();
 
   r.Start("copyVerticesToGpu", /*gpu=*/true);
   spdlog::trace("Copying vertices");
-  ccd::Scalar *d_vertices_t0;
-  ccd::Scalar *d_vertices_t1;
-  cudaMalloc((void **)&d_vertices_t0, sizeof(ccd::Scalar) * vertices_t0.size());
-  cudaMalloc((void **)&d_vertices_t1, sizeof(ccd::Scalar) * vertices_t1.size());
-  cudaMemcpy(d_vertices_t0, vertices_t0.data(),
-             sizeof(ccd::Scalar) * vertices_t0.size(), cudaMemcpyHostToDevice);
-  cudaMemcpy(d_vertices_t1, vertices_t1.data(),
-             sizeof(ccd::Scalar) * vertices_t1.size(), cudaMemcpyHostToDevice);
+  double *d_vertices_t0 = copy_to_gpu(vertices_t0.data(), vertices_t0.size());
+  double *d_vertices_t1 = copy_to_gpu(vertices_t1.data(), vertices_t1.size());
   r.Stop();
   int Vrows = vertices_t0.rows();
   assert(Vrows == vertices_t1.rows());
 
   int max_iter = -1;
-  ccd::Scalar tolerance = 1e-6;
+  Scalar tolerance = 1e-6;
 
   run_narrowphase(d_overlaps, d_boxes, count, d_vertices_t0, d_vertices_t1,
-                  Vrows, threads, max_iter, tolerance, ms, use_ms,
-                  allow_zero_toi, result_list, toi, r);
+                  Vrows, threads, max_iter, tolerance, ms, allow_zero_toi,
+                  result_list, toi, r);
 
   gpuErrchk(cudaGetLastError());
 
@@ -430,13 +342,10 @@ void construct_continuous_collision_candidates(const Eigen::MatrixXd &V0,
   cudaFree(d_count);
 }
 
-ccd::Scalar compute_toi_strategy(const Eigen::MatrixXd &V0,
-                                 const Eigen::MatrixXd &V1,
-                                 const Eigen::MatrixXi &E,
-                                 const Eigen::MatrixXi &F, int max_iter,
-                                 ccd::Scalar min_distance,
-                                 ccd::Scalar tolerance) {
-  ccd::Scalar earliest_toi;
+Scalar compute_toi_strategy(const Eigen::MatrixXd &V0,
+                            const Eigen::MatrixXd &V1, const Eigen::MatrixXi &E,
+                            const Eigen::MatrixXi &F, int max_iter,
+                            Scalar min_distance, Scalar tolerance) {
   vector<ccdgpu::Aabb> boxes;
   constructBoxes(V0, V1, E, F, boxes);
   spdlog::trace("Finished constructing");
@@ -464,20 +373,11 @@ ccd::Scalar compute_toi_strategy(const Eigen::MatrixXd &V0,
   gpuErrchk(cudaGetLastError());
 
   // Allocate boxes to GPU
-  Aabb *d_boxes;
-  cudaMalloc((void **)&d_boxes, sizeof(Aabb) * N);
-  cudaMemcpy(d_boxes, boxes.data(), sizeof(Aabb) * N, cudaMemcpyHostToDevice);
-  gpuErrchk(cudaGetLastError());
+  Aabb *d_boxes = copy_to_gpu(boxes.data(), boxes.size());
 
   spdlog::trace("Copying vertices");
-  ccd::Scalar *d_vertices_t0;
-  ccd::Scalar *d_vertices_t1;
-  cudaMalloc((void **)&d_vertices_t0, sizeof(ccd::Scalar) * V0.size());
-  cudaMalloc((void **)&d_vertices_t1, sizeof(ccd::Scalar) * V1.size());
-  cudaMemcpy(d_vertices_t0, V0.data(), sizeof(ccd::Scalar) * V0.size(),
-             cudaMemcpyHostToDevice);
-  cudaMemcpy(d_vertices_t1, V1.data(), sizeof(ccd::Scalar) * V1.size(),
-             cudaMemcpyHostToDevice);
+  double *d_vertices_t0 = copy_to_gpu(V0.data(), V0.size());
+  double *d_vertices_t1 = copy_to_gpu(V1.data(), V1.size());
 
   int Vrows = V0.rows();
   assert(Vrows == V1.rows());
@@ -485,19 +385,17 @@ ccd::Scalar compute_toi_strategy(const Eigen::MatrixXd &V0,
   json j;
   Record r(j);
 
+  Scalar earliest_toi;
   run_narrowphase(d_overlaps, d_boxes, count, d_vertices_t0, d_vertices_t1,
                   Vrows, threads, /*max_iter=*/max_iter, /*tol=*/tolerance,
-                  /*ms=*/min_distance,
-                  /*use_ms=*/false,
-                  /*allow_zero_toi=*/true, result_list, earliest_toi, r);
+                  /*ms=*/min_distance, /*allow_zero_toi=*/true, result_list,
+                  earliest_toi, r);
 
   if (earliest_toi < 1e-6) {
     run_narrowphase(d_overlaps, d_boxes, count, d_vertices_t0, d_vertices_t1,
-                    Vrows, threads, /*max_iter=*/-1,
-                    /*tol=*/tolerance,
-                    /*ms=*/0.0,
-                    /*use_ms=*/false,
-                    /*allow_zero_toi=*/false, result_list, earliest_toi, r);
+                    Vrows, threads, /*max_iter=*/-1, /*tol=*/tolerance,
+                    /*ms=*/0.0, /*allow_zero_toi=*/false, result_list,
+                    earliest_toi, r);
     earliest_toi *= 0.8;
   }
 
@@ -513,3 +411,5 @@ ccd::Scalar compute_toi_strategy(const Eigen::MatrixXd &V0,
 
   return earliest_toi;
 }
+
+} // namespace ccd::gpu

@@ -97,11 +97,9 @@ target_compile_options(${PROJECT_NAME} PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:
 ################################################################################
 
 include(broadphase)
-target_link_libraries(${PROJECT_NAME} PUBLIC broadphase::broadphase)
+target_link_libraries(${PROJECT_NAME} PUBLIC STQ::CUDA)
 
 # target_link_libraries(${PROJECT_NAME} PUBLIC gputi)
-
-target_link_libraries(${PROJECT_NAME} PUBLIC CPUSWEEP)
 
 # libigl
 target_link_libraries(${PROJECT_NAME} PUBLIC igl::core)

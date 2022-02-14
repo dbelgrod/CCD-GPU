@@ -1,4 +1,5 @@
 #include <iostream>
+#include <fstream>
 #include <unistd.h>
 
 #include <gpubf/groundtruth.cuh>
@@ -15,11 +16,16 @@
 // using namespace ccdgpu;
 // using namespace ccd;
 
+bool is_file_exist(const char *fileName) {
+  std::ifstream infile(fileName);
+  return infile.good();
+}
+
 int main(int argc, char **argv) {
   spdlog::set_level(static_cast<spdlog::level::level_enum>(0));
 
   std::vector<char *> compare;
-  ccdgpu::Record r;
+  ccd::gpu::Record r;
 
   char *filet0;
   char *filet1;
@@ -76,7 +82,6 @@ int main(int argc, char **argv) {
   std::vector<int> result_list;
   ccd::Scalar toi;
 
-  bool use_ms = false;
   bool allow_zero_toi = true;
   ccd::Scalar min_distance = 0;
 
@@ -89,7 +94,7 @@ int main(int argc, char **argv) {
   //                                       boxes);
 
   run_ccd(boxes, vertices_t0, vertices_t1, r, N, nbox, parallel, devcount,
-          overlaps, result_list, use_ms, allow_zero_toi, min_distance, toi);
+          overlaps, result_list, allow_zero_toi, min_distance, toi);
   // r.Print();
   // std::cout << r.j_object["run_memory_pool_ccd (narrowphase)"];
 

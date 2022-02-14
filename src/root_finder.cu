@@ -52,7 +52,7 @@ __device__ bool sum_no_larger_1(const Scalar &num1, const Scalar &num2) {
   return true;
 }
 __device__ void
-compute_face_vertex_tolerance_memory_pool(CCDdata &data_in,
+compute_face_vertex_tolerance_memory_pool(CCDData &data_in,
                                           const CCDConfig &config) {
   Scalar p000[3], p001[3], p011[3], p010[3], p100[3], p101[3], p111[3], p110[3];
   for (int i = 0; i < 3; i++) {
@@ -98,7 +98,7 @@ compute_face_vertex_tolerance_memory_pool(CCDdata &data_in,
   data_in.tol[2] = config.co_domain_tolerance / dl;
 }
 __device__ void
-compute_edge_edge_tolerance_memory_pool(CCDdata &data_in,
+compute_edge_edge_tolerance_memory_pool(CCDData &data_in,
                                         const CCDConfig &config) {
   Scalar p000[3], p001[3], p011[3], p010[3], p100[3], p101[3], p111[3], p110[3];
   for (int i = 0; i < 3; i++) {
@@ -142,7 +142,7 @@ compute_edge_edge_tolerance_memory_pool(CCDdata &data_in,
   data_in.tol[2] = config.co_domain_tolerance / dl;
 }
 
-__device__ __host__ void get_numerical_error_vf_memory_pool(CCDdata &data_in,
+__device__ __host__ void get_numerical_error_vf_memory_pool(CCDData &data_in,
                                                             bool use_ms) {
   Scalar vffilter;
   //   bool use_ms = false;
@@ -200,7 +200,7 @@ __device__ __host__ void get_numerical_error_vf_memory_pool(CCDdata &data_in,
   data_in.err[2] = zmax * zmax * zmax * vffilter;
   return;
 }
-__device__ __host__ void get_numerical_error_ee_memory_pool(CCDdata &data_in,
+__device__ __host__ void get_numerical_error_ee_memory_pool(CCDData &data_in,
                                                             bool use_ms) {
   Scalar vffilter;
   //   bool use_ms = false;
@@ -279,7 +279,7 @@ __device__ void BoxPrimatives::calculate_tuv(const MP_unit &unit) {
     v = unit.itv[2].second;
   }
 }
-__device__ Scalar calculate_vf(const CCDdata &data_in,
+__device__ Scalar calculate_vf(const CCDData &data_in,
                                const BoxPrimatives &bp) {
   Scalar v, pt, t0, t1, t2;
   v = (data_in.v0e[bp.dim] - data_in.v0s[bp.dim]) * bp.t + data_in.v0s[bp.dim];
@@ -289,7 +289,7 @@ __device__ Scalar calculate_vf(const CCDdata &data_in,
   pt = (t1 - t0) * bp.u + (t2 - t0) * bp.v + t0;
   return (v - pt);
 }
-__device__ Scalar calculate_ee(const CCDdata &data_in,
+__device__ Scalar calculate_ee(const CCDData &data_in,
                                const BoxPrimatives &bp) {
   Scalar edge0_vertex0 =
     (data_in.v0e[bp.dim] - data_in.v0s[bp.dim]) * bp.t + data_in.v0s[bp.dim];
@@ -306,7 +306,7 @@ __device__ Scalar calculate_ee(const CCDdata &data_in,
 }
 
 inline __device__ bool Origin_in_vf_inclusion_function_memory_pool(
-  const CCDdata &data_in, MP_unit &unit, Scalar &true_tol, bool &box_in) {
+  const CCDData &data_in, MP_unit &unit, Scalar &true_tol, bool &box_in) {
   box_in = true;
   true_tol = 0.0;
   BoxPrimatives bp;
@@ -346,7 +346,7 @@ inline __device__ bool Origin_in_vf_inclusion_function_memory_pool(
   return true;
 }
 inline __device__ bool Origin_in_ee_inclusion_function_memory_pool(
-  const CCDdata &data_in, MP_unit &unit, Scalar &true_tol, bool &box_in) {
+  const CCDData &data_in, MP_unit &unit, Scalar &true_tol, bool &box_in) {
   box_in = true;
   true_tol = 0.0;
   BoxPrimatives bp;
@@ -388,7 +388,7 @@ inline __device__ bool Origin_in_ee_inclusion_function_memory_pool(
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // the memory pool method
-__global__ void compute_vf_tolerance_memory_pool(CCDdata *data,
+__global__ void compute_vf_tolerance_memory_pool(CCDData *data,
                                                  CCDConfig *config,
                                                  const int query_size) {
   int tx = threadIdx.x + blockIdx.x * blockDim.x;
@@ -403,7 +403,7 @@ __global__ void compute_vf_tolerance_memory_pool(CCDdata *data,
   data[tx].nbr_checks = 0;
   get_numerical_error_vf_memory_pool(data[tx], config[0].use_ms);
 }
-__global__ void compute_ee_tolerance_memory_pool(CCDdata *data,
+__global__ void compute_ee_tolerance_memory_pool(CCDData *data,
                                                  CCDConfig *config,
                                                  const int query_size) {
   int tx = threadIdx.x + blockIdx.x * blockDim.x;
@@ -426,7 +426,7 @@ __global__ void initialize_memory_pool(MP_unit *units, int query_size) {
   units[tx].init(tx);
 }
 __device__ int
-split_dimension_memory_pool(const CCDdata &data,
+split_dimension_memory_pool(const CCDData &data,
                             Scalar width[3]) { // clarified in queue.h
   int split = 0;
   Scalar res[3];
@@ -555,7 +555,7 @@ mutex_update_min(cuda::binary_semaphore<cuda::thread_scope_device> &mutex,
 }
 
 __global__ void vf_ccd_memory_pool(MP_unit *units, int query_size,
-                                   CCDdata *data, CCDConfig *config) {
+                                   CCDData *data, CCDConfig *config) {
   int tx = threadIdx.x + blockIdx.x * blockDim.x;
   if (tx >= config[0].mp_remaining)
     return;
@@ -569,7 +569,7 @@ __global__ void vf_ccd_memory_pool(MP_unit *units, int query_size,
 
   MP_unit units_in = units[qid];
   int box_id = units_in.query_id;
-  CCDdata data_in = data[box_id];
+  CCDData data_in = data[box_id];
 
   atomicAdd(&data[box_id].nbr_checks, 1);
 
@@ -671,7 +671,7 @@ __global__ void vf_ccd_memory_pool(MP_unit *units, int query_size,
   }
 }
 __global__ void ee_ccd_memory_pool(MP_unit *units, int query_size,
-                                   CCDdata *data, CCDConfig *config) {
+                                   CCDData *data, CCDConfig *config) {
   //   bool allow_zero_toi = true;
 
   int tx = threadIdx.x + blockIdx.x * blockDim.x;
@@ -685,7 +685,7 @@ __global__ void ee_ccd_memory_pool(MP_unit *units, int query_size,
 
   MP_unit units_in = units[qid];
   int box_id = units_in.query_id;
-  CCDdata data_in = data[box_id];
+  CCDData data_in = data[box_id];
 
   atomicAdd(&data[box_id].nbr_checks, 1);
 
@@ -796,11 +796,11 @@ __global__ void shift_queue_pointers(CCDConfig *config) {
       : config[0].mp_remaining;
 }
 
-void run_memory_pool_ccd(CCDdata *d_data_list, int tmp_nbr, bool is_edge,
+void run_memory_pool_ccd(CCDData *d_data_list, int tmp_nbr, bool is_edge,
                          std::vector<int> &result_list, int parallel_nbr,
                          int max_iter, ccd::Scalar tol, bool use_ms,
                          bool allow_zero_toi, ccd::Scalar &toi,
-                         ccdgpu::Record &r) {
+                         gpu::Record &r) {
   int nbr = tmp_nbr;
   spdlog::trace("tmp_nbr {}", tmp_nbr);
   // int *res = new int[nbr];
@@ -817,7 +817,7 @@ void run_memory_pool_ccd(CCDdata *d_data_list, int tmp_nbr, bool is_edge,
   config[0].mp_start = 0;
   config[0].mp_remaining = nbr;
   config[0].overflow_flag = 0;
-  config[0].unit_size = std::min(16 * nbr, int(5e7)); // 2.0 * nbr;
+  config[0].unit_size = std::min(1024 * nbr, int(5e7)); // 2.0 * nbr;
   config[0].use_ms = use_ms;
   config[0].allow_zero_toi = allow_zero_toi;
   config[0].max_iter = max_iter;
@@ -918,9 +918,9 @@ void run_memory_pool_ccd(CCDdata *d_data_list, int tmp_nbr, bool is_edge,
                 cudaGetErrorString(ct));
 
 #ifdef CCD_TOI_PER_QUERY
-  CCDdata *data_list = new CCDdata[tmp_nbr];
+  CCDData *data_list = new CCDData[tmp_nbr];
   // CCDConfig *config = new CCDConfig[1];
-  cudaMemcpy(data_list, d_data_list, sizeof(CCDdata) * tmp_nbr,
+  cudaMemcpy(data_list, d_data_list, sizeof(CCDData) * tmp_nbr,
              cudaMemcpyDeviceToHost);
   // std::vector<std::pair<std::string, std::string>> symbolic_tois;
   int tpq_cnt = 0;
