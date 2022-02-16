@@ -142,6 +142,60 @@ compute_edge_edge_tolerance_memory_pool(CCDData &data_in,
   data_in.tol[2] = config.co_domain_tolerance / dl;
 }
 
+std::array<Scalar, 3>
+get_numerical_error(const std::vector<std::array<Scalar, 3>> &vertices,
+                    const bool &check_vf, const bool use_ms) {
+  Scalar eefilter;
+  Scalar vffilter;
+  if (!use_ms) {
+#ifdef GPUTI_USE_DOUBLE_PRECISION
+    eefilter = 6.217248937900877e-15;
+    vffilter = 6.661338147750939e-15;
+#else
+    eefilter = 3.337861e-06;
+    vffilter = 3.576279e-06;
+#endif
+  } else // using minimum separation
+  {
+#ifdef GPUTI_USE_DOUBLE_PRECISION
+    eefilter = 7.105427357601002e-15;
+    vffilter = 7.549516567451064e-15;
+#else
+    eefilter = 3.814698e-06;
+    vffilter = 4.053116e-06;
+#endif
+  }
+
+  Scalar xmax = fabs(vertices[0][0]);
+  Scalar ymax = fabs(vertices[0][1]);
+  Scalar zmax = fabs(vertices[0][2]);
+  for (int i = 0; i < vertices.size(); i++) {
+    if (xmax < fabs(vertices[i][0])) {
+      xmax = fabs(vertices[i][0]);
+    }
+    if (ymax < fabs(vertices[i][1])) {
+      ymax = fabs(vertices[i][1]);
+    }
+    if (zmax < fabs(vertices[i][2])) {
+      zmax = fabs(vertices[i][2]);
+    }
+  }
+  Scalar delta_x = xmax > 1 ? xmax : 1;
+  Scalar delta_y = ymax > 1 ? ymax : 1;
+  Scalar delta_z = zmax > 1 ? zmax : 1;
+  std::array<Scalar, 3> result;
+  if (!check_vf) {
+    result[0] = delta_x * delta_x * delta_x * eefilter;
+    result[1] = delta_y * delta_y * delta_y * eefilter;
+    result[2] = delta_z * delta_z * delta_z * eefilter;
+  } else {
+    result[0] = delta_x * delta_x * delta_x * vffilter;
+    result[1] = delta_y * delta_y * delta_y * vffilter;
+    result[2] = delta_z * delta_z * delta_z * vffilter;
+  }
+  return result;
+}
+
 __device__ __host__ void get_numerical_error_vf_memory_pool(CCDData &data_in,
                                                             bool use_ms) {
   Scalar vffilter;
