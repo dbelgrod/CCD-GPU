@@ -13,8 +13,8 @@
 
 #include <spdlog/spdlog.h>
 
-// using namespace ccdgpu;
-// using namespace ccd;
+using namespace stq::gpu;
+using namespace ccd::gpu;
 
 bool is_file_exist(const char *fileName) {
   std::ifstream infile(fileName);
@@ -25,7 +25,7 @@ int main(int argc, char **argv) {
   spdlog::set_level(static_cast<spdlog::level::level_enum>(0));
 
   std::vector<char *> compare;
-  ccd::gpu::Record r;
+  Record r;
 
   char *filet0;
   char *filet1;
