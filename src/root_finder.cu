@@ -979,7 +979,7 @@ void run_memory_pool_ccd(CCDData *d_data_list, int tmp_nbr, bool is_edge,
   // std::vector<std::pair<std::string, std::string>> symbolic_tois;
   int tpq_cnt = 0;
   for (size_t i = 0; i < tmp_nbr; i++) {
-    ccdgpu::Rational ra(data_list[i].toi);
+    stq::gpu::Rational ra(data_list[i].toi);
     if (data_list[i].toi > 1)
       continue;
     tpq_cnt++;

@@ -2,9 +2,9 @@
 #include <fstream>
 #include <unistd.h>
 
-#include <gpubf/groundtruth.cuh>
-#include <gpubf/io.cuh>
-#include <gpubf/util.cuh>
+#include <stq/gpu/groundtruth.cuh>
+#include <stq/gpu/io.cuh>
+#include <stq/gpu/util.cuh>
 
 #include <ccdgpu/CType.cuh>
 #include <ccdgpu/helper.cuh>
@@ -36,7 +36,7 @@ int main(int argc, char **argv) {
   else // static CD
     filet1 = argv[1];
 
-  std::vector<ccdgpu::Aabb> boxes;
+  std::vector<stq::gpu::Aabb> boxes;
   Eigen::MatrixXd vertices_t0;
   Eigen::MatrixXd vertices_t1;
   Eigen::MatrixXi faces;

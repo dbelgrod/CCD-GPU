@@ -8,15 +8,15 @@
 // #include <gputi/io.h>
 #include <ccdgpu/root_finder.cuh>
 #include <ccdgpu/timer.hpp>
-#include <gpubf/io.cuh>
+#include <stq/gpu/io.cuh>
 
 #include <ccdgpu/record.hpp>
-#include <gpubf/simulation.cuh>
+#include <stq/gpu/simulation.cuh>
 
 #include <spdlog/spdlog.h>
 
 using namespace std;
-using namespace ccdgpu;
+using namespace stq::gpu;
 
 namespace ccd::gpu {
 
@@ -43,7 +43,7 @@ template <typename T> T *copy_to_gpu(const T *cpu_data, const int size) {
 }
 
 __global__ void split_overlaps(const int2 *const overlaps,
-                               const ccdgpu::Aabb *const boxes, int N,
+                               const stq::gpu::Aabb *const boxes, int N,
                                int2 *vf_overlaps, int2 *ee_overlaps,
                                int *vf_count, int *ee_count) {
   int tid = threadIdx.x + blockIdx.x * blockDim.x;
@@ -68,9 +68,9 @@ __global__ void split_overlaps(const int2 *const overlaps,
 }
 
 __global__ void addData(const int2 *const overlaps,
-                        const ccdgpu::Aabb *const boxes, const Scalar *const V0,
-                        const Scalar *const V1, int Vrows, int N, Scalar ms,
-                        CCDData *data) {
+                        const stq::gpu::Aabb *const boxes,
+                        const Scalar *const V0, const Scalar *const V1,
+                        int Vrows, int N, Scalar ms, CCDData *data) {
   int tid = threadIdx.x + blockIdx.x * blockDim.x;
   if (tid >= N)
     return;
@@ -312,7 +312,7 @@ void construct_static_collision_candidates(const Eigen::MatrixXd &V,
                                            const Eigen::MatrixXi &E,
                                            const Eigen::MatrixXi &F,
                                            vector<pair<int, int>> &overlaps,
-                                           vector<ccdgpu::Aabb> &boxes,
+                                           vector<stq::gpu::Aabb> &boxes,
                                            double inflation_radius) {
   construct_continuous_collision_candidates(V, V, E, F, overlaps, boxes,
                                             inflation_radius);
@@ -323,7 +323,7 @@ void construct_continuous_collision_candidates(const Eigen::MatrixXd &V0,
                                                const Eigen::MatrixXi &E,
                                                const Eigen::MatrixXi &F,
                                                vector<pair<int, int>> &overlaps,
-                                               vector<ccdgpu::Aabb> &boxes,
+                                               vector<stq::gpu::Aabb> &boxes,
                                                double inflation_radius) {
   constructBoxes(V0, V1, E, F, boxes, -1, inflation_radius);
   int N = boxes.size();
@@ -346,7 +346,7 @@ Scalar compute_toi_strategy(const Eigen::MatrixXd &V0,
                             const Eigen::MatrixXd &V1, const Eigen::MatrixXi &E,
                             const Eigen::MatrixXi &F, int max_iter,
                             Scalar min_distance, Scalar tolerance) {
-  vector<ccdgpu::Aabb> boxes;
+  vector<stq::gpu::Aabb> boxes;
   constructBoxes(V0, V1, E, F, boxes);
   spdlog::trace("Finished constructing");
   int N = boxes.size();
