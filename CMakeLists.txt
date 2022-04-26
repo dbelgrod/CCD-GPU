@@ -90,7 +90,8 @@ target_compile_options(${PROJECT_NAME} PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:
                        --relocatable-device-code=true
                        # --ptxas-options=-v
                        # --maxrregcount=7
-                       >)
+                       >
+                       -fPIC) #https://stackoverflow.com/questions/5311515/gcc-fpic-option
 
 ################################################################################
 # Required Libraries
@@ -147,5 +148,6 @@ if(CCDGPU_TOPLEVEL_PROJECT)
         --relocatable-device-code=true
         --ptxas-options=-v
         # --maxrregcount=7
-        >)
+        >
+        -fPIC) #https://stackoverflow.com/questions/5311515/gcc-fpic-option
 endif()
