@@ -11,7 +11,7 @@ else()
     include(FetchContent)
     FetchContent_Declare(
         broadphase
-        GIT_REPOSITORY git@github.com:dbelgrod/broadphase-gpu.git
+        GIT_REPOSITORY https://github.com/dbelgrod/broadphase-gpu.git
         GIT_TAG be43935557d229f13c912d4983026d11d8ab7025
         GIT_SHALLOW FALSE
     )
