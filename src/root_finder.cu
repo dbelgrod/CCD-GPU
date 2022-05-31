@@ -555,7 +555,11 @@ mutex_update_min(cuda::binary_semaphore<cuda::thread_scope_device> &mutex,
 }
 
 __global__ void vf_ccd_memory_pool(MP_unit *units, int query_size,
-                                   CCDdata *data, CCDConfig *config) {
+                                   CCDdata *data, CCDConfig *config,
+                                   #ifdef CCD_KEEP_COLLISIONS
+                                   int *results
+                         #endif
+                                  ) {
   int tx = threadIdx.x + blockIdx.x * blockDim.x;
   if (tx >= config[0].mp_remaining)
     return;
@@ -584,10 +588,11 @@ __global__ void vf_ccd_memory_pool(MP_unit *units, int query_size,
   if (time_left >= data_in.toi)
     return;
 #endif
-  // if (results[box_id] > 0)
-  // { // if it is sure that have root, then no need to check
-  // 	return;
-  // }
+#ifdef CCD_KEEP_COLLISIONS
+  if (results[box_id] > 0) {
+    return; // if it is sure that have root, then no need to check
+  }
+#endif
   if (config[0].max_iter >= 0 &&
       data_in.nbr_checks > config[0].max_iter) // max checks
   {
@@ -616,7 +621,9 @@ __global__ void vf_ccd_memory_pool(MP_unit *units, int query_size,
                 widths[2] <= data_in.tol[2];
     if (condition) {
       mutex_update_min(config[0].mutex, config[0].toi, time_left);
-      // results[box_id] = 1;
+#ifdef CCD_KEEP_COLLISIONS
+      results[box_id] = 1;
+#endif
 
 #ifdef CCD_TOI_PER_QUERY
       mutex_update_min(config[0].mutex, data[box_id].toi, time_left);
@@ -628,7 +635,9 @@ __global__ void vf_ccd_memory_pool(MP_unit *units, int query_size,
 
     if (box_in && (config[0].allow_zero_toi || time_left > 0)) {
       mutex_update_min(config[0].mutex, config[0].toi, time_left);
-      // results[box_id] = 1;
+#ifdef CCD_KEEP_COLLISIONS
+      results[box_id] = 1;
+#endif
 
 #ifdef CCD_TOI_PER_QUERY
       mutex_update_min(config[0].mutex, data[box_id].toi, time_left);
@@ -641,7 +650,9 @@ __global__ void vf_ccd_memory_pool(MP_unit *units, int query_size,
     condition = true_tol <= config->co_domain_tolerance;
     if (condition && (config[0].allow_zero_toi || time_left > 0)) {
       mutex_update_min(config[0].mutex, config[0].toi, time_left);
-      // results[box_id] = 1;
+#ifdef CCD_KEEP_COLLISIONS
+      results[box_id] = 1;
+#endif
 
 #ifdef CCD_TOI_PER_QUERY
       mutex_update_min(config[0].mutex, data[box_id].toi, time_left);
@@ -661,7 +672,9 @@ __global__ void vf_ccd_memory_pool(MP_unit *units, int query_size,
                  // happens. it should be rare to happen
     {
       mutex_update_min(config[0].mutex, config[0].toi, time_left);
-      // results[box_id] = 1;
+#ifdef CCD_KEEP_COLLISIONS
+      results[box_id] = 1;
+#endif
 
 #ifdef CCD_TOI_PER_QUERY
       mutex_update_min(config[0].mutex, data[box_id].toi, time_left);
@@ -671,7 +684,11 @@ __global__ void vf_ccd_memory_pool(MP_unit *units, int query_size,
   }
 }
 __global__ void ee_ccd_memory_pool(MP_unit *units, int query_size,
-                                   CCDdata *data, CCDConfig *config) {
+                                   CCDdata *data, CCDConfig *config,
+                                   #ifdef CCD_KEEP_COLLISIONS
+                                   int *results
+                         #endif
+                                  ) {
   //   bool allow_zero_toi = true;
 
   int tx = threadIdx.x + blockIdx.x * blockDim.x;
@@ -700,10 +717,12 @@ __global__ void ee_ccd_memory_pool(MP_unit *units, int query_size,
   if (time_left >= data_in.toi)
     return;
 #endif
-  // if (results[box_id] > 0)
-  // { // if it is sure that have root, then no need to check
-  // 	return;
-  // }
+#ifdef CCD_KEEP_COLLISIONS
+  if (results[box_id] > 0) {
+    return; // if it is sure that have root, then no need to check
+  }
+#endif
+
   if (config[0].max_iter >= 0 &&
       data_in.nbr_checks > config[0].max_iter) // max checks
   {
@@ -732,7 +751,9 @@ __global__ void ee_ccd_memory_pool(MP_unit *units, int query_size,
                 widths[2] <= data_in.tol[2];
     if (condition) {
       mutex_update_min(config[0].mutex, config[0].toi, time_left);
-      // results[box_id] = 1;
+#ifdef CCD_KEEP_COLLISIONS
+      results[box_id] = 1;
+#endif
 
 #ifdef CCD_TOI_PER_QUERY
       mutex_update_min(config[0].mutex, data[box_id].toi, time_left);
@@ -742,7 +763,9 @@ __global__ void ee_ccd_memory_pool(MP_unit *units, int query_size,
     // Condition 2, the box is inside the epsilon box, have a root, return true;
     if (box_in && (config[0].allow_zero_toi || time_left > 0)) {
       mutex_update_min(config[0].mutex, config[0].toi, time_left);
-      // results[box_id] = 1;
+#ifdef CCD_KEEP_COLLISIONS
+      results[box_id] = 1;
+#endif
 
 #ifdef CCD_TOI_PER_QUERY
       mutex_update_min(config[0].mutex, data[box_id].toi, time_left);
@@ -755,7 +778,9 @@ __global__ void ee_ccd_memory_pool(MP_unit *units, int query_size,
     condition = true_tol <= config->co_domain_tolerance;
     if (condition && (config[0].allow_zero_toi || time_left > 0)) {
       mutex_update_min(config[0].mutex, config[0].toi, time_left);
-      // results[box_id] = 1;
+#ifdef CCD_KEEP_COLLISIONS
+      results[box_id] = 1;
+#endif
 
 #ifdef CCD_TOI_PER_QUERY
       mutex_update_min(config[0].mutex, data[box_id].toi, time_left);
@@ -775,7 +800,9 @@ __global__ void ee_ccd_memory_pool(MP_unit *units, int query_size,
                  // happens. it should be rare to happen
     {
       mutex_update_min(config[0].mutex, config[0].toi, time_left);
-      // results[box_id] = 1;
+#ifdef CCD_KEEP_COLLISIONS
+      results[box_id] = 1;
+#endif
 
 #ifdef CCD_TOI_PER_QUERY
       mutex_update_min(config[0].mutex, data[box_id].toi, time_left);
@@ -803,7 +830,10 @@ void run_memory_pool_ccd(CCDdata *d_data_list, int tmp_nbr, bool is_edge,
                          ccdgpu::Record &r) {
   int nbr = tmp_nbr;
   spdlog::trace("tmp_nbr {}", tmp_nbr);
-  // int *res = new int[nbr];
+
+#ifdef CCD_KEEP_COLLISIONS
+  int *res = new int[nbr];
+#endif
   CCDConfig *config = new CCDConfig[1];
   // config[0].err_in[0] =
   //     -1; // the input error bound calculate from the AABB of the whole
@@ -823,15 +853,16 @@ void run_memory_pool_ccd(CCDdata *d_data_list, int tmp_nbr, bool is_edge,
   config[0].max_iter = max_iter;
   spdlog::trace("unit_size : {:d}", config[0].unit_size);
 
-  // int *d_res;
   MP_unit *d_units;
   CCDConfig *d_config;
 
   size_t unit_size = sizeof(MP_unit) * config[0].unit_size; // arbitrary #
 
-  // size_t result_size = sizeof(int) * nbr;
-
-  // cudaMalloc(&d_res, result_size);
+#ifdef CCD_KEEP_COLLISIONS
+  int *d_res;
+  size_t result_size = sizeof(int) * nbr;
+  cudaMalloc(&d_res, result_size);
+#endif
   cudaMalloc(&d_units, unit_size);
   cudaMalloc(&d_config, sizeof(CCDConfig));
   cudaMemcpy(d_config, config, sizeof(CCDConfig), cudaMemcpyHostToDevice);
@@ -864,10 +895,18 @@ void run_memory_pool_ccd(CCDdata *d_data_list, int tmp_nbr, bool is_edge,
   while (nbr_per_loop > 0) {
     if (is_edge) {
       ee_ccd_memory_pool<<<nbr_per_loop / parallel_nbr + 1, parallel_nbr>>>(
-          d_units, nbr, d_data_list, d_config);
+          d_units, nbr, d_data_list, d_config,
+#ifdef CCD_KEEP_COLLISIONS
+          d_res
+#endif
+      );
     } else {
       vf_ccd_memory_pool<<<nbr_per_loop / parallel_nbr + 1, parallel_nbr>>>(
-          d_units, nbr, d_data_list, d_config);
+          d_units, nbr, d_data_list, d_config,
+#ifdef CCD_KEEP_COLLISIONS
+          d_res
+#endif
+      );
     }
     cudaDeviceSynchronize();
     gpuErrchk(cudaGetLastError());
@@ -893,7 +932,9 @@ void run_memory_pool_ccd(CCDdata *d_data_list, int tmp_nbr, bool is_edge,
   // run_time += tt / 1000.0f;
   gpuErrchk(cudaGetLastError());
 
-  // cudaMemcpy(res, d_res, result_size, cudaMemcpyDeviceToHost);
+#ifdef CCD_KEEP_COLLISIONS
+  cudaMemcpy(res, d_res, result_size, cudaMemcpyDeviceToHost);
+#endif
   cudaMemcpy(&toi, &d_config[0].toi, sizeof(ccd::Scalar),
              cudaMemcpyDeviceToHost);
   int overflow;
@@ -906,12 +947,17 @@ void run_memory_pool_ccd(CCDdata *d_data_list, int tmp_nbr, bool is_edge,
 
   gpuErrchk(cudaFree(d_units));
   gpuErrchk(cudaFree(d_config));
+#ifdef CCD_KEEP_COLLISIONS
+  gpuErrchk(cudaFree(d_res));
+#endif
 
-  // for (size_t i = 0; i < nbr; i++) {
-  //   result_list[i] = res[i];
-  // }
+#ifdef CCD_KEEP_COLLISIONS
+  for (size_t i = 0; i < nbr; i++) {
+    result_list[i] = res[i];
+  }
+  delete[] res;
+#endif
 
-  // delete[] res;
   delete[] config;
   cudaError_t ct = cudaGetLastError();
   spdlog::trace("\n******************\n{}\n******************",

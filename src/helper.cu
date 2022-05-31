@@ -301,7 +301,7 @@ void run_narrowphase(int2 *d_overlaps, Aabb *d_boxes, int count,
     // spdlog::trace("data loaded, size {}", queries.size());
     spdlog::trace("data loaded, size {}", size);
 
-    // result_list.resize(size);
+    result_list.resize(size);
 
     int parallel = 64;
     spdlog::trace("run_memory_pool_ccd using {:d} threads", parallel);
@@ -425,12 +425,12 @@ void construct_static_collision_candidates(const Eigen::MatrixXd &V,
 }
 
 void construct_continuous_collision_candidates(const Eigen::MatrixXd &V0,
-                                          const Eigen::MatrixXd &V1,
-                                              const Eigen::MatrixXi &E,
-                                              const Eigen::MatrixXi &F,
-                                              vector<pair<int, int>> &overlaps,
-                                              vector<ccdgpu::Aabb> &boxes,
-                                              double inflation_radius) {
+                                               const Eigen::MatrixXd &V1,
+                                               const Eigen::MatrixXi &E,
+                                               const Eigen::MatrixXi &F,
+                                               vector<pair<int, int>> &overlaps,
+                                               vector<ccdgpu::Aabb> &boxes,
+                                               double inflation_radius) {
   constructBoxes(V0, V1, E, F, boxes,
                  static_cast<ccdgpu::Scalar>(inflation_radius));
   int N = boxes.size();

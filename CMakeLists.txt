@@ -16,7 +16,7 @@ set(LIBIGL_WITH_TRIANGLE          OFF CACHE BOOL "Use Triangle"        )
 set(LIBIGL_WITH_PREDICATES        ON CACHE BOOL "Use exact predicates")
 set(LIBIGL_WITH_XML               OFF CACHE BOOL "Use XML"             )
 set(LIBIGL_WITH_PYTHON            OFF CACHE BOOL "Use Python"          )
-set(CCDGPU_BROADPHASE_PATH ${PROJECT_SOURCE_DIR}/repo/broadphase)
+set(CCDGPU_BROADPHASE_PATH ${PROJECT_SOURCE_DIR}/repo/broadphase-gpu)
 
 if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
   set(CCDGPU_TOPLEVEL_PROJECT ON)
@@ -27,6 +27,7 @@ endif()
 
 OPTION(GPUTI_WITH_DOUBLE_PRECISION   "use double precision calculation" ON)
 OPTION(CCD_TOI_PER_QUERY   "record symbolic toi per each query in json" OFF)
+OPTION(CCD_KEEP_COLLISIONS   "keep collision list after CCD" ON)
 
 
 ### Configuration
@@ -52,6 +53,9 @@ if(GPUTI_WITH_DOUBLE_PRECISION)
 endif()
 if(CCD_TOI_PER_QUERY)
   target_compile_definitions(${PROJECT_NAME} PUBLIC CCD_TOI_PER_QUERY)
+endif()
+if(CCD_KEEP_COLLISIONS)
+  target_compile_definitions(${PROJECT_NAME} PUBLIC CCD_KEEP_COLLISIONS)
 endif()
 
 # Request that CCDGPU be built with -std=c++11

@@ -18,4 +18,4 @@ else()
     FetchContent_MakeAvailable(broadphase)
 endif()
 
-add_library(broadphase::broadphase ALIAS GPUBF)
+add_library(broadphase::broadphase ALIAS STQ_CUDA)
