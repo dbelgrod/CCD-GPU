@@ -122,8 +122,6 @@ void run_narrowphase(int2 *d_overlaps, Aabb *d_boxes, int count,
                      int threads, int max_iter, Scalar tol, Scalar ms,
                      bool allow_zero_toi, vector<int> &result_list, Scalar &toi,
                      Record &r) {
-  toi = 1.0;
-
   bool use_ms = ms > 0;
 
   int *d_vf_count;
@@ -254,70 +252,65 @@ void run_ccd(const vector<Aabb> boxes, const Eigen::MatrixXd &vertices_t0,
              int &parallel, int &devcount, vector<pair<int, int>> &overlaps,
              vector<int> &result_list, bool &allow_zero_toi, Scalar &ms,
              Scalar &toi) {
+  toi = 1;
   bool use_ms = ms > 0;
 
-  
   int tidstart = 0;
-
-  
 
   int threads = 32; // HARDCODING THREADS FOR NOW
 
   int tidend = 0;
   int2 *d_overlaps;
-  int *d_count;  
-  
-  while (tidend < N)
-  {  
-  
-  r.Start("run_sweep_sharedqueue (broadphase)", /*gpu=*/true);
-  run_sweep_sharedqueue(boxes.data(), N, nbox, overlaps, d_overlaps, d_count,
-                        threads, tidend, devcount);
-  r.Stop();
-             
-  spdlog::trace("First run start {:d}, end {:d}", tidstart, tidend);
-  tidstart = tidend;   
-         
-  threads = 1024;
-  spdlog::trace("Threads now {:d}", threads);
+  int *d_count;
 
-  r.Start("copyBoxesToGpu", /*gpu=*/true);
-  // copy overlap count
-  int count;
-  gpuErrchk(cudaMemcpy(&count, d_count, sizeof(int), cudaMemcpyDeviceToHost));
-  spdlog::trace("Count {:d}", count);
-  gpuErrchk(cudaGetLastError());
+  while (tidend < N) {
 
-  Aabb *d_boxes = copy_to_gpu(boxes.data(), boxes.size());
-  r.Stop();
+    r.Start("run_sweep_sharedqueue (broadphase)", /*gpu=*/true);
+    run_sweep_sharedqueue(boxes.data(), N, nbox, overlaps, d_overlaps, d_count,
+                          threads, tidend, devcount);
+    r.Stop();
 
-  r.Start("copyVerticesToGpu", /*gpu=*/true);
-  spdlog::trace("Copying vertices");
-  double *d_vertices_t0 = copy_to_gpu(vertices_t0.data(), vertices_t0.size());
-  double *d_vertices_t1 = copy_to_gpu(vertices_t1.data(), vertices_t1.size());
-  r.Stop();
-  int Vrows = vertices_t0.rows();
-  assert(Vrows == vertices_t1.rows());
+    spdlog::trace("First run start {:d}, end {:d}", tidstart, tidend);
+    tidstart = tidend;
 
-  int max_iter = -1;
-  Scalar tolerance = 1e-6;
+    threads = 1024;
+    spdlog::trace("Threads now {:d}", threads);
 
-  run_narrowphase(d_overlaps, d_boxes, count, d_vertices_t0, d_vertices_t1,
-                  Vrows, threads, max_iter, tolerance, ms, allow_zero_toi,
-                  result_list, toi, r);
+    r.Start("copyBoxesToGpu", /*gpu=*/true);
+    // copy overlap count
+    int count;
+    gpuErrchk(cudaMemcpy(&count, d_count, sizeof(int), cudaMemcpyDeviceToHost));
+    spdlog::trace("Count {:d}", count);
 
-  gpuErrchk(cudaGetLastError());
+    Aabb *d_boxes = copy_to_gpu(boxes.data(), boxes.size());
+    r.Stop();
 
-  gpuErrchk(cudaFree(d_count));
-  gpuErrchk(cudaFree(d_overlaps));
-  gpuErrchk(cudaFree(d_boxes));
-  gpuErrchk(cudaFree(d_vertices_t0));
-  gpuErrchk(cudaFree(d_vertices_t1));
+    r.Start("copyVerticesToGpu", /*gpu=*/true);
+    spdlog::trace("Copying vertices");
+    double *d_vertices_t0 = copy_to_gpu(vertices_t0.data(), vertices_t0.size());
+    double *d_vertices_t1 = copy_to_gpu(vertices_t1.data(), vertices_t1.size());
+    r.Stop();
+    int Vrows = vertices_t0.rows();
+    assert(Vrows == vertices_t1.rows());
 
-  gpuErrchk(cudaGetLastError());
+    int max_iter = -1;
+    Scalar tolerance = 1e-6;
 
-  cudaDeviceSynchronize();
+    run_narrowphase(d_overlaps, d_boxes, count, d_vertices_t0, d_vertices_t1,
+                    Vrows, threads, max_iter, tolerance, ms, allow_zero_toi,
+                    result_list, toi, r);
 
+    gpuErrchk(cudaGetLastError());
+
+    gpuErrchk(cudaFree(d_count));
+    gpuErrchk(cudaFree(d_overlaps));
+    gpuErrchk(cudaFree(d_boxes));
+    gpuErrchk(cudaFree(d_vertices_t0));
+    gpuErrchk(cudaFree(d_vertices_t1));
+
+    gpuErrchk(cudaGetLastError());
+
+    cudaDeviceSynchronize();
   }
 }
 
@@ -348,7 +341,8 @@ void construct_continuous_collision_candidates(const Eigen::MatrixXd &V0,
   int threads = 32; // HARDCODING THREADS FOR NOW
   int tidstart = 0;
   run_sweep_sharedqueue(boxes.data(), N, nbox, overlaps, d_overlaps, d_count,
-                        threads, tidstart, devcount, /*keep_cpu_overlaps=*/true);
+                        threads, tidstart, devcount,
+                        /*keep_cpu_overlaps=*/true);
   gpuErrchk(cudaGetLastError());
 
   spdlog::trace("Overlaps size {:d}", overlaps.size());
@@ -376,65 +370,63 @@ Scalar compute_toi_strategy(const Eigen::MatrixXd &V0,
   int threads = 32; // HARDCODING THREADS FOR NOW
   int tidstart = 0;
   int ntidstart = tidstart;
- 
+
   run_sweep_sharedqueue(boxes.data(), N, nbox, overlaps, d_overlaps, d_count,
                         threads, ntidstart, devcount);
   json j;
   Record r(j);
-                      
+
   Scalar earliest_toi;
   spdlog::trace("First run start {:d}, end {:d}", tidstart, ntidstart);
 
-  while (ntidstart != tidstart)
-  {                          
-  threads = 1024;
-  gpuErrchk(cudaGetLastError());
-  spdlog::trace("Threads now {:d}", threads);
+  while (ntidstart != tidstart) {
+    threads = 1024;
+    gpuErrchk(cudaGetLastError());
+    spdlog::trace("Threads now {:d}", threads);
 
-  // copy overlap count
-  int count;
-  gpuErrchk(cudaMemcpy(&count, d_count, sizeof(int), cudaMemcpyDeviceToHost));
-  spdlog::trace("Count {:d}", count);
-  gpuErrchk(cudaGetLastError());
+    // copy overlap count
+    int count;
+    gpuErrchk(cudaMemcpy(&count, d_count, sizeof(int), cudaMemcpyDeviceToHost));
+    spdlog::trace("Count {:d}", count);
+    gpuErrchk(cudaGetLastError());
 
-  // Allocate boxes to GPU
-  Aabb *d_boxes = copy_to_gpu(boxes.data(), boxes.size());
+    // Allocate boxes to GPU
+    Aabb *d_boxes = copy_to_gpu(boxes.data(), boxes.size());
 
-  spdlog::trace("Copying vertices");
-  double *d_vertices_t0 = copy_to_gpu(V0.data(), V0.size());
-  double *d_vertices_t1 = copy_to_gpu(V1.data(), V1.size());
+    spdlog::trace("Copying vertices");
+    double *d_vertices_t0 = copy_to_gpu(V0.data(), V0.size());
+    double *d_vertices_t1 = copy_to_gpu(V1.data(), V1.size());
 
-  int Vrows = V0.rows();
-  assert(Vrows == V1.rows());
+    int Vrows = V0.rows();
+    assert(Vrows == V1.rows());
 
- 
-  run_narrowphase(d_overlaps, d_boxes, count, d_vertices_t0, d_vertices_t1,
-                  Vrows, threads, /*max_iter=*/max_iter, /*tol=*/tolerance,
-                  /*ms=*/min_distance, /*allow_zero_toi=*/true, result_list,
-                  earliest_toi, r);
-
-  if (earliest_toi < 1e-6) {
     run_narrowphase(d_overlaps, d_boxes, count, d_vertices_t0, d_vertices_t1,
-                    Vrows, threads, /*max_iter=*/-1, /*tol=*/tolerance,
-                    /*ms=*/0.0, /*allow_zero_toi=*/false, result_list,
+                    Vrows, threads, /*max_iter=*/max_iter, /*tol=*/tolerance,
+                    /*ms=*/min_distance, /*allow_zero_toi=*/true, result_list,
                     earliest_toi, r);
-    earliest_toi *= 0.8;
+
+    if (earliest_toi < 1e-6) {
+      run_narrowphase(d_overlaps, d_boxes, count, d_vertices_t0, d_vertices_t1,
+                      Vrows, threads, /*max_iter=*/-1, /*tol=*/tolerance,
+                      /*ms=*/0.0, /*allow_zero_toi=*/false, result_list,
+                      earliest_toi, r);
+      earliest_toi *= 0.8;
+    }
+
+    gpuErrchk(cudaGetLastError());
+
+    gpuErrchk(cudaFree(d_count));
+    gpuErrchk(cudaFree(d_overlaps));
+    gpuErrchk(cudaFree(d_boxes));
+    gpuErrchk(cudaFree(d_vertices_t0));
+    gpuErrchk(cudaFree(d_vertices_t1));
+
+    gpuErrchk(cudaGetLastError());
+
+    tidstart = ntidstart;
+    run_sweep_sharedqueue(boxes.data(), N, nbox, overlaps, d_overlaps, d_count,
+                          threads, ntidstart, devcount);
   }
-
-  gpuErrchk(cudaGetLastError());
-
-  gpuErrchk(cudaFree(d_count));
-  gpuErrchk(cudaFree(d_overlaps));
-  gpuErrchk(cudaFree(d_boxes));
-  gpuErrchk(cudaFree(d_vertices_t0));
-  gpuErrchk(cudaFree(d_vertices_t1));
-
-  gpuErrchk(cudaGetLastError());
-
-  tidstart = ntidstart;
-  run_sweep_sharedqueue(boxes.data(), N, nbox, overlaps, d_overlaps, d_count,
-                        threads, ntidstart, devcount);
-}
 
   return earliest_toi;
 }
