@@ -257,29 +257,30 @@ void run_ccd(const vector<Aabb> boxes, const Eigen::MatrixXd &vertices_t0,
 
   int tidstart = 0;
 
-  int threads = 32; // HARDCODING THREADS FOR NOW
+  int bpthreads = 32; // HARDCODING THREADS FOR NOW
+  int npthreads = 1024;
 
   int tidend = 0;
   int2 *d_overlaps;
   int *d_count;
-
+  int tot_count = 0;
   while (tidend < N) {
-
+    
     r.Start("run_sweep_sharedqueue (broadphase)", /*gpu=*/true);
     run_sweep_sharedqueue(boxes.data(), N, nbox, overlaps, d_overlaps, d_count,
-                          threads, tidend, devcount);
+                          bpthreads, tidend, devcount);
     r.Stop();
 
     spdlog::trace("First run start {:d}, end {:d}", tidstart, tidend);
     tidstart = tidend;
-
-    threads = 1024;
-    spdlog::trace("Threads now {:d}", threads);
+    
+    spdlog::trace("Threads now {:d}", npthreads);
 
     r.Start("copyBoxesToGpu", /*gpu=*/true);
-    // copy overlap count
+    // // copy overlap count
     int count;
     gpuErrchk(cudaMemcpy(&count, d_count, sizeof(int), cudaMemcpyDeviceToHost));
+    tot_count += count;
     spdlog::trace("Count {:d}", count);
 
     Aabb *d_boxes = copy_to_gpu(boxes.data(), boxes.size());
@@ -297,7 +298,7 @@ void run_ccd(const vector<Aabb> boxes, const Eigen::MatrixXd &vertices_t0,
     Scalar tolerance = 1e-6;
 
     run_narrowphase(d_overlaps, d_boxes, count, d_vertices_t0, d_vertices_t1,
-                    Vrows, threads, max_iter, tolerance, ms, allow_zero_toi,
+                    Vrows, npthreads, max_iter, tolerance, ms, allow_zero_toi,
                     result_list, toi, r);
 
     gpuErrchk(cudaGetLastError());
@@ -312,6 +313,7 @@ void run_ccd(const vector<Aabb> boxes, const Eigen::MatrixXd &vertices_t0,
 
     cudaDeviceSynchronize();
   }
+  spdlog::trace("Total count {:d}", tot_count);
 }
 
 void construct_static_collision_candidates(const Eigen::MatrixXd &V,
