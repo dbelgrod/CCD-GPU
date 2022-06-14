@@ -139,6 +139,7 @@ void run_narrowphase(int2 *d_overlaps, Aabb *d_boxes, int count,
   // double tmp_tall = 0;
 
   int remain;
+  spdlog::trace("remain {:d}, size {:d}", remain, size);
   while ((remain = size - start_id) > 0
 #ifndef CCD_TOI_PER_QUERY
          && toi > 0
@@ -146,7 +147,7 @@ void run_narrowphase(int2 *d_overlaps, Aabb *d_boxes, int count,
   ) {
     spdlog::trace("remain {:d}, start_id {:d}", remain, start_id);
 
-    int tmp_nbr = std::min(remain, MAX_OVERLAP_SIZE);
+    int tmp_nbr = std::min(remain, MAX_QUERIES);
     // int tmp_nbr = std::min(remain, size / 4);
 
     r.Start("splitOverlaps", /*gpu=*/true);
@@ -255,17 +256,18 @@ void run_ccd(const vector<Aabb> boxes, const Eigen::MatrixXd &vertices_t0,
   toi = 1;
   bool use_ms = ms > 0;
 
-  int tidstart = 0;
+  int tidstart = 1;
 
-  int bpthreads = 32; // HARDCODING THREADS FOR NOW
+  int bpthreads = 1024; // 32; // HARDCODING THREADS FOR NOW
   int npthreads = 1024;
 
   int tidend = 0;
   int2 *d_overlaps;
   int *d_count;
-  int tot_count = 0;
-  while (tidend < N) {
-    
+  size_t tot_count = 0;
+  while (tidstart > 0) {
+    //&& toi > 0) {
+
     r.Start("run_sweep_sharedqueue (broadphase)", /*gpu=*/true);
     run_sweep_sharedqueue(boxes.data(), N, nbox, overlaps, d_overlaps, d_count,
                           bpthreads, tidend, devcount);
@@ -273,7 +275,7 @@ void run_ccd(const vector<Aabb> boxes, const Eigen::MatrixXd &vertices_t0,
 
     spdlog::trace("First run start {:d}, end {:d}", tidstart, tidend);
     tidstart = tidend;
-    
+
     spdlog::trace("Threads now {:d}", npthreads);
 
     r.Start("copyBoxesToGpu", /*gpu=*/true);

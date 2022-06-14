@@ -907,7 +907,7 @@ void run_memory_pool_ccd(CCDData *d_data_list, int tmp_nbr, bool is_edge,
   cudaDeviceSynchronize();
   gpuErrchk(cudaGetLastError());
 
-  spdlog::trace("MAX_OVERLAP_SIZE: {:d}", MAX_OVERLAP_SIZE);
+  spdlog::trace("MAX_QUERIES: {:d}", MAX_QUERIES);
   spdlog::trace("sizeof(Scalar) {:d}", sizeof(ccd::Scalar));
 
   int nbr_per_loop = nbr;
