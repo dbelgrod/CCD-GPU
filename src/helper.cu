@@ -148,7 +148,6 @@ void run_narrowphase(int2 *d_overlaps, Aabb *d_boxes, int count,
     spdlog::trace("remain {:d}, start_id {:d}", remain, start_id);
 
     int tmp_nbr = std::min(remain, MAX_QUERIES);
-    // int tmp_nbr = std::min(remain, size / 4);
 
     r.Start("splitOverlaps", /*gpu=*/true);
     cudaMemset(d_vf_count, 0, sizeof(int));
@@ -158,10 +157,6 @@ void run_narrowphase(int2 *d_overlaps, Aabb *d_boxes, int count,
     cudaMalloc((void **)&d_vf_overlaps, sizeof(int2) * tmp_nbr);
     cudaMalloc((void **)&d_ee_overlaps, sizeof(int2) * tmp_nbr);
     gpuErrchk(cudaGetLastError());
-
-    // // hack
-    // thrust::sort(thrust::device, d_overlaps, d_overlaps + count,
-    // sort_aabb_x()); cudaDeviceSynchronize();
 
     split_overlaps<<<tmp_nbr / threads + 1, threads>>>(
       d_overlaps + start_id, d_boxes, tmp_nbr, d_vf_overlaps, d_ee_overlaps,
@@ -177,13 +172,6 @@ void run_narrowphase(int2 *d_overlaps, Aabb *d_boxes, int count,
     cudaMemcpy(&ee_size, d_ee_count, sizeof(int), cudaMemcpyDeviceToHost);
     spdlog::trace("vf_size {} ee_size {}", vf_size, ee_size);
     gpuErrchk(cudaGetLastError());
-
-    // hack
-    // thrust::sort(thrust::device, d_vf_overlaps, d_vf_overlaps + vf_size,
-    //              sort_aabb_x());
-    // thrust::sort(thrust::device, d_ee_overlaps, d_ee_overlaps + ee_size,
-    //              sort_aabb_x());
-    // cudaDeviceSynchronize();
 
     CCDData *d_ee_data_list;
     CCDData *d_vf_data_list;
@@ -258,14 +246,14 @@ void run_ccd(const vector<Aabb> boxes, const Eigen::MatrixXd &vertices_t0,
 
   int tidstart = 1;
 
-  int bpthreads = 1024; // 32; // HARDCODING THREADS FOR NOW
+  int bpthreads = 32; // 32; // HARDCODING THREADS FOR NOW
   int npthreads = 1024;
 
   int tidend = 0;
   int2 *d_overlaps;
   int *d_count;
   size_t tot_count = 0;
-  while (tidstart > 0) {
+  while (N > tidstart - 2) {
     //&& toi > 0) {
 
     r.Start("run_sweep_sharedqueue (broadphase)", /*gpu=*/true);
