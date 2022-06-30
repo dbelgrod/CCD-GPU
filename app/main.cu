@@ -5,6 +5,7 @@
 #include <stq/gpu/groundtruth.cuh>
 #include <stq/gpu/io.cuh>
 #include <stq/gpu/util.cuh>
+#include <stq/gpu/memory.cuh>
 
 #include <ccdgpu/CType.cuh>
 #include <ccdgpu/helper.cuh>
@@ -22,7 +23,9 @@ bool is_file_exist(const char *fileName) {
 }
 
 int main(int argc, char **argv) {
-  spdlog::set_level(static_cast<spdlog::level::level_enum>(0));
+  spdlog::set_level(static_cast<spdlog::level::level_enum>(1));
+
+  stq::gpu::MemHandler *memhandle = new stq::gpu::MemHandler();
 
   std::vector<char *> compare;
   Record r;
@@ -93,8 +96,8 @@ int main(int argc, char **argv) {
   // construct_static_collision_candidates(vertices_t0, edges, faces, overlaps,
   //                                       boxes);
 
-  run_ccd(boxes, vertices_t0, vertices_t1, r, N, nbox, parallel, devcount,
-          overlaps, result_list, allow_zero_toi, min_distance, toi);
+  run_ccd(boxes, memhandle, vertices_t0, vertices_t1, r, N, nbox, parallel,
+          devcount, overlaps, result_list, allow_zero_toi, min_distance, toi);
   // r.Print();
   // std::cout << r.j_object["run_memory_pool_ccd (narrowphase)"];
 

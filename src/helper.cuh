@@ -3,6 +3,7 @@
 #include <ccdgpu/Type.hpp>
 #include <ccdgpu/record.hpp>
 #include <stq/gpu/aabb.cuh>
+#include <stq/gpu/memory.cuh>
 
 #include <spdlog/spdlog.h>
 
@@ -18,6 +19,7 @@ __global__ void addData(const int2 *const overlaps,
                         CCDData *data, int shift = 0);
 
 void run_ccd(const std::vector<stq::gpu::Aabb> boxes,
+             stq::gpu::MemHandler *memhandle,
              const Eigen::MatrixXd &vertices_t0,
              const Eigen::MatrixXd &vertices_t1, Record &r, int N, int &nbox,
              int &parallel, int &devcount,
