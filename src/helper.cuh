@@ -27,7 +27,8 @@ void run_ccd(const std::vector<stq::gpu::Aabb> boxes,
              std::vector<int> &result_list, bool &allow_zero_toi,
              Scalar &min_distance, Scalar &toi);
 
-void run_narrowphase(int2 *d_overlaps, stq::gpu::Aabb *d_boxes, int count,
+void run_narrowphase(int2 *d_overlaps, stq::gpu::Aabb *d_boxes,
+                     stq::gpu::MemHandler *memhandle, int count,
                      Scalar *d_vertices_t0, Scalar *d_vertices_t1, int Vrows,
                      int threads, int max_iter, Scalar tol, Scalar ms,
                      bool allow_zero_toi, std::vector<int> &result_list,

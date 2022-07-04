@@ -118,7 +118,8 @@ __global__ void addData(const int2 *const overlaps,
     assert(false);
 }
 
-void run_narrowphase(int2 *d_overlaps, Aabb *d_boxes, int count,
+void run_narrowphase(int2 *d_overlaps, Aabb *d_boxes,
+                     stq::gpu::MemHandler *memhandle, int count,
                      Scalar *d_vertices_t0, Scalar *d_vertices_t1, int Vrows,
                      int threads, int max_iter, Scalar tol, Scalar ms,
                      bool allow_zero_toi, vector<int> &result_list, Scalar &toi,
@@ -135,106 +136,133 @@ void run_narrowphase(int2 *d_overlaps, Aabb *d_boxes, int count,
 
   int start_id = 0;
   int size = count;
+  memhandle->MAX_QUERIES = size;
 
   // double tavg = 0;
   // double tmp_tall = 0;
 
-  int remain;
+  size_t remain;
   spdlog::trace("remain {:d}, size {:d}", remain, size);
   while ((remain = size - start_id) > 0
 #ifndef CCD_TOI_PER_QUERY
          && toi > 0
 #endif
   ) {
-    spdlog::trace("remain {:d}, start_id {:d}", remain, start_id);
+    spdlog::debug("remain {:d}, start_id {:d}", remain, start_id);
 
-    int tmp_nbr = std::min(remain, MAX_QUERIES);
+    int overflow = 1; // run at least once
+    int itr = 0;
+    int tmp_nbr;
+    while (overflow) {
+      tmp_nbr = std::min(remain, memhandle->MAX_QUERIES);
+      size_t constraint = sizeof(MP_unit) * 2 * memhandle->MAX_UNIT_SIZE +
+                          sizeof(CCDConfig) + tmp_nbr * sizeof(int2) * 2 +
+                          sizeof(CCDData) * tmp_nbr;
+      spdlog::debug("itr {:d}", itr);
+      if (itr == 0)
+        memhandle->increaseUnitSize(constraint);
+      else
+        memhandle->handleOverflow(constraint);
+      itr++;
 
-    r.Start("splitOverlaps", /*gpu=*/true);
-    cudaMemset(d_vf_count, 0, sizeof(int));
-    cudaMemset(d_ee_count, 0, sizeof(int));
-    gpuErrchk(cudaGetLastError());
+      r.Start("splitOverlaps", /*gpu=*/true);
+      gpuErrchk(cudaMemset(d_vf_count, 0, sizeof(int)));
+      gpuErrchk(cudaMemset(d_ee_count, 0, sizeof(int)));
 
-    cudaMalloc((void **)&d_vf_overlaps, sizeof(int2) * tmp_nbr);
-    cudaMalloc((void **)&d_ee_overlaps, sizeof(int2) * tmp_nbr);
-    gpuErrchk(cudaGetLastError());
+      gpuErrchk(cudaMalloc((void **)&d_vf_overlaps, sizeof(int2) * tmp_nbr));
+      gpuErrchk(cudaMalloc((void **)&d_ee_overlaps, sizeof(int2) * tmp_nbr));
 
-    split_overlaps<<<tmp_nbr / threads + 1, threads>>>(
-      d_overlaps + start_id, d_boxes, tmp_nbr, d_vf_overlaps, d_ee_overlaps,
-      d_vf_count, d_ee_count);
-    cudaDeviceSynchronize();
-    gpuErrchk(cudaGetLastError());
-    r.Stop();
+      split_overlaps<<<tmp_nbr / threads + 1, threads>>>(
+        d_overlaps + start_id, d_boxes, tmp_nbr, d_vf_overlaps, d_ee_overlaps,
+        d_vf_count, d_ee_count);
+      gpuErrchk(cudaDeviceSynchronize());
+      r.Stop();
 
-    r.Start("createDataList", /*gpu=*/true);
-    int vf_size;
-    int ee_size;
-    cudaMemcpy(&vf_size, d_vf_count, sizeof(int), cudaMemcpyDeviceToHost);
-    cudaMemcpy(&ee_size, d_ee_count, sizeof(int), cudaMemcpyDeviceToHost);
-    spdlog::trace("vf_size {} ee_size {}", vf_size, ee_size);
-    gpuErrchk(cudaGetLastError());
+      r.Start("createDataList", /*gpu=*/true);
+      int vf_size;
+      int ee_size;
+      gpuErrchk(
+        cudaMemcpy(&vf_size, d_vf_count, sizeof(int), cudaMemcpyDeviceToHost));
+      gpuErrchk(
+        cudaMemcpy(&ee_size, d_ee_count, sizeof(int), cudaMemcpyDeviceToHost));
+      spdlog::trace("vf_size {} ee_size {}", vf_size, ee_size);
 
-    CCDData *d_ee_data_list;
-    CCDData *d_vf_data_list;
+      CCDData *d_ee_data_list;
+      CCDData *d_vf_data_list;
 
-    size_t ee_data_size = sizeof(CCDData) * ee_size;
-    size_t vf_data_size = sizeof(CCDData) * vf_size;
+      size_t ee_data_size = sizeof(CCDData) * ee_size;
+      size_t vf_data_size = sizeof(CCDData) * vf_size;
 
-    cudaMalloc((void **)&d_ee_data_list, ee_data_size);
-    cudaMalloc((void **)&d_vf_data_list, vf_data_size);
-    spdlog::trace("ee_data_size {:d}", ee_data_size);
-    spdlog::trace("vf_data_size {:d}", vf_data_size);
-    gpuErrchk(cudaGetLastError());
+      gpuErrchk(cudaMalloc((void **)&d_ee_data_list, ee_data_size));
+      gpuErrchk(cudaMalloc((void **)&d_vf_data_list, vf_data_size));
+      spdlog::trace("ee_data_size {:d}", ee_data_size);
+      spdlog::trace("vf_data_size {:d}", vf_data_size);
 
-    addData<<<vf_size / threads + 1, threads>>>(
-      d_vf_overlaps, d_boxes, d_vertices_t0, d_vertices_t1, Vrows, vf_size, ms,
-      d_vf_data_list);
-    cudaDeviceSynchronize();
-    gpuErrchk(cudaGetLastError());
-    addData<<<ee_size / threads + 1, threads>>>(
-      d_ee_overlaps, d_boxes, d_vertices_t0, d_vertices_t1, Vrows, ee_size, ms,
-      d_ee_data_list);
-    cudaDeviceSynchronize();
-    gpuErrchk(cudaGetLastError());
+      addData<<<vf_size / threads + 1, threads>>>(
+        d_vf_overlaps, d_boxes, d_vertices_t0, d_vertices_t1, Vrows, vf_size,
+        ms, d_vf_data_list);
+      cudaDeviceSynchronize();
+      gpuErrchk(cudaGetLastError());
+      addData<<<ee_size / threads + 1, threads>>>(
+        d_ee_overlaps, d_boxes, d_vertices_t0, d_vertices_t1, Vrows, ee_size,
+        ms, d_ee_data_list);
+      cudaDeviceSynchronize();
+      gpuErrchk(cudaGetLastError());
 
-    r.Stop();
+      r.Stop();
 
-    spdlog::trace("vf_size {:d}, ee_size {:d}", vf_size, ee_size);
+      gpuErrchk(cudaFree(d_vf_overlaps));
+      gpuErrchk(cudaFree(d_ee_overlaps));
+      gpuErrchk(cudaFree(d_vf_count));
+      gpuErrchk(cudaFree(d_ee_count));
 
-    // int size = count;
-    // spdlog::trace("data loaded, size {}", queries.size());
-    spdlog::trace("data loaded, size {}", size);
+      spdlog::trace("vf_size {:d}, ee_size {:d}", vf_size, ee_size);
 
-    // result_list.resize(size);
+      // int size = count;
+      // spdlog::trace("data loaded, size {}", queries.size());
+      spdlog::trace("data loaded, size {}", size);
 
-    int parallel = 64;
-    spdlog::trace("run_memory_pool_ccd using {:d} threads", parallel);
-    r.Start("run_memory_pool_ccd (narrowphase)", /*gpu=*/true);
-    // toi = 1;
-    run_memory_pool_ccd(d_vf_data_list, vf_size, /*is_edge_edge=*/false,
-                        result_list, parallel, max_iter, tol, use_ms,
-                        allow_zero_toi, toi, r);
+      // result_list.resize(size);
 
-    cudaDeviceSynchronize();
-    gpuErrchk(cudaGetLastError());
-    spdlog::debug("toi after vf {:e}", toi);
-    // spdlog::trace("time after vf {:.6f}",  tmp_tall);
+      int parallel = 64;
+      spdlog::trace("run_memory_pool_ccd using {:d} threads", parallel);
+      r.Start("run_memory_pool_ccd (narrowphase)", /*gpu=*/true);
+      // toi = 1;
+      run_memory_pool_ccd(d_vf_data_list, memhandle, vf_size,
+                          /*is_edge_edge=*/false, result_list, parallel,
+                          max_iter, tol, use_ms, allow_zero_toi, toi, overflow,
+                          r);
 
-    run_memory_pool_ccd(d_ee_data_list, ee_size, /*is_edge_edge=*/true,
-                        result_list, parallel, max_iter, tol, use_ms,
-                        allow_zero_toi, toi, r);
-    gpuErrchk(cudaGetLastError());
-    spdlog::debug("toi after ee {:e}", toi);
-    // spdlog::trace("time after ee {:.6f}",  tmp_tall);
-    r.Stop();
+      gpuErrchk(cudaDeviceSynchronize());
 
-    gpuErrchk(cudaFree(d_vf_overlaps));
-    gpuErrchk(cudaFree(d_ee_overlaps));
+      r.Stop();
+      if (overflow) // rerun
+      {
+        spdlog::debug("overflow after vf");
+        gpuErrchk(cudaFree(d_ee_data_list));
+        continue;
+      }
+      spdlog::debug("toi after vf {:e}", toi);
+      // spdlog::trace("time after vf {:.6f}",  tmp_tall);
+      r.Start("run_memory_pool_ccd (narrowphase)", /*gpu=*/true);
+      run_memory_pool_ccd(d_ee_data_list, memhandle, ee_size,
+                          /*is_edge_edge=*/true, result_list, parallel,
+                          max_iter, tol, use_ms, allow_zero_toi, toi, overflow,
+                          r);
+      gpuErrchk(cudaDeviceSynchronize());
+      r.Stop();
+      spdlog::debug("toi after ee {:e}", toi);
+      if (overflow)
+        spdlog::debug("overflow after ee");
+      // spdlog::trace("time after ee {:.6f}",  tmp_tall);
+    }
+
+    // int overflow;
+    // cudaMemcpy(&overflow, &d_config[0].overflow_flag, sizeof(int),
+    //            cudaMemcpyDeviceToHost);
 
     start_id += tmp_nbr;
   }
-  gpuErrchk(cudaFree(d_vf_count));
-  gpuErrchk(cudaFree(d_ee_count));
 }
 
 void run_ccd(const vector<Aabb> boxes, stq::gpu::MemHandler *memhandle,
@@ -248,13 +276,14 @@ void run_ccd(const vector<Aabb> boxes, stq::gpu::MemHandler *memhandle,
 
   int tidstart = 0;
 
-  int bpthreads = 32; // 32; // HARDCODING THREADS FOR NOW
+  int bpthreads = 32; // HARDCODING THREADS FOR NOW
   int npthreads = 1024;
 
   int2 *d_overlaps;
   int *d_count;
   size_t tot_count = 0;
   while (N > tidstart && toi > 0) {
+
     spdlog::debug("Next loop: N {:d}, tidstart {:d}", N, tidstart);
 
     r.Start("run_sweep_sharedqueue (broadphase)", /*gpu=*/true);
@@ -289,9 +318,9 @@ void run_ccd(const vector<Aabb> boxes, stq::gpu::MemHandler *memhandle,
     int max_iter = -1;
     Scalar tolerance = 1e-6;
 
-    run_narrowphase(d_overlaps, d_boxes, count, d_vertices_t0, d_vertices_t1,
-                    Vrows, npthreads, max_iter, tolerance, ms, allow_zero_toi,
-                    result_list, toi, r);
+    run_narrowphase(d_overlaps, d_boxes, memhandle, count, d_vertices_t0,
+                    d_vertices_t1, Vrows, npthreads, max_iter, tolerance, ms,
+                    allow_zero_toi, result_list, toi, r);
     gpuErrchk(cudaGetLastError());
 
     gpuErrchk(cudaFree(d_count));
@@ -396,16 +425,17 @@ Scalar compute_toi_strategy(const Eigen::MatrixXd &V0,
     int Vrows = V0.rows();
     assert(Vrows == V1.rows());
 
-    run_narrowphase(d_overlaps, d_boxes, count, d_vertices_t0, d_vertices_t1,
-                    Vrows, threads, /*max_iter=*/max_iter, /*tol=*/tolerance,
+    run_narrowphase(d_overlaps, d_boxes, memhandle, count, d_vertices_t0,
+                    d_vertices_t1, Vrows, threads, /*max_iter=*/max_iter,
+                    /*tol=*/tolerance,
                     /*ms=*/min_distance, /*allow_zero_toi=*/true, result_list,
                     earliest_toi, r);
 
     if (earliest_toi < 1e-6) {
-      run_narrowphase(d_overlaps, d_boxes, count, d_vertices_t0, d_vertices_t1,
-                      Vrows, threads, /*max_iter=*/-1, /*tol=*/tolerance,
-                      /*ms=*/0.0, /*allow_zero_toi=*/false, result_list,
-                      earliest_toi, r);
+      run_narrowphase(
+        d_overlaps, d_boxes, memhandle, count, d_vertices_t0, d_vertices_t1,
+        Vrows, threads, /*max_iter=*/-1, /*tol=*/tolerance,
+        /*ms=*/0.0, /*allow_zero_toi=*/false, result_list, earliest_toi, r);
       earliest_toi *= 0.8;
     }
 
