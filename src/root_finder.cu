@@ -859,8 +859,7 @@ void run_memory_pool_ccd(CCDData *d_data_list, stq::gpu::MemHandler *memhandle,
   int nbr = tmp_nbr;
   spdlog::trace("tmp_nbr {}", tmp_nbr);
 
-  memhandle->setUnitSize(/*unit_size-*/ sizeof(MP_unit),
-                         /*constraint=*/sizeof(CCDConfig));
+  memhandle->setUnitSize(/*constraint=*/sizeof(CCDConfig));
 
   // int *res = new int[nbr];
   CCDConfig *config = new CCDConfig[1];
