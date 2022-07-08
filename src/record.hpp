@@ -62,8 +62,7 @@ struct Record {
     float elapsed; // was double
     if (!gpu_timer_on) {
       timer.stop();
-      elapsed += timer.getElapsedTimeInMicroSec();
-      elapsed /= 1000.f;
+      elapsed += timer.getElapsedTimeInMilliSec();
       spdlog::trace("Cpu timer stopped for {}: {:.6f} ms", tag, elapsed);
     } else {
       cudaEventRecord(stop);
