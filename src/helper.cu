@@ -364,8 +364,7 @@ void construct_continuous_collision_candidates(const Eigen::MatrixXd &V0,
   int tidstart = 0;
   stq::gpu::MemHandler *memhandle = new MemHandler();
   run_sweep_sharedqueue(boxes.data(), memhandle, N, nbox, overlaps, d_overlaps,
-                        d_count, threads, tidstart, devcount,
-                        /*keep_cpu_overlaps=*/true);
+                        d_count, threads, tidstart, devcount);
   gpuErrchk(cudaGetLastError());
 
   spdlog::trace("Overlaps size {:d}", overlaps.size());
