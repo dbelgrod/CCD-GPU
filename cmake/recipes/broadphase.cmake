@@ -15,7 +15,7 @@ else()
     FetchContent_Declare(
         broadphase
         GIT_REPOSITORY https://github.com/dbelgrod/broadphase-gpu.git
-        GIT_TAG 17bbb5eb29ef14d42ef15da78cf95409e9057858
+        GIT_TAG 384de78f6b8226efc39c7a1be05a39fdae7d8f54
         GIT_SHALLOW FALSE
     )
     FetchContent_MakeAvailable(broadphase)
