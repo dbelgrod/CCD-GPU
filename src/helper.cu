@@ -128,8 +128,6 @@ void run_narrowphase(int2 *d_overlaps, Aabb *d_boxes,
 
   int *d_vf_count;
   int *d_ee_count;
-  cudaMalloc((void **)&d_vf_count, sizeof(int));
-  cudaMalloc((void **)&d_ee_count, sizeof(int));
 
   int2 *d_vf_overlaps;
   int2 *d_ee_overlaps;
@@ -148,7 +146,7 @@ void run_narrowphase(int2 *d_overlaps, Aabb *d_boxes,
          && toi > 0
 #endif
   ) {
-    spdlog::debug("remain {:d}, start_id {:d}", remain, start_id);
+    spdlog::trace("remain {:d}, start_id {:d}", remain, start_id);
 
     int overflow = 1; // run at least once
     int itr = 0;
@@ -158,7 +156,7 @@ void run_narrowphase(int2 *d_overlaps, Aabb *d_boxes,
       size_t constraint = sizeof(MP_unit) * 2 * memhandle->MAX_UNIT_SIZE +
                           sizeof(CCDConfig) + tmp_nbr * sizeof(int2) * 2 +
                           sizeof(CCDData) * tmp_nbr;
-      spdlog::debug("itr {:d}", itr);
+      spdlog::trace("itr {:d}", itr);
       if (itr == 0)
         memhandle->increaseUnitSize(constraint);
       else
@@ -166,6 +164,9 @@ void run_narrowphase(int2 *d_overlaps, Aabb *d_boxes,
       itr++;
 
       r.Start("splitOverlaps", /*gpu=*/true);
+      gpuErrchk(cudaMalloc((void **)&d_vf_count, sizeof(int)));
+      gpuErrchk(cudaMalloc((void **)&d_ee_count, sizeof(int)));
+
       gpuErrchk(cudaMemset(d_vf_count, 0, sizeof(int)));
       gpuErrchk(cudaMemset(d_ee_count, 0, sizeof(int)));
 
@@ -238,11 +239,11 @@ void run_narrowphase(int2 *d_overlaps, Aabb *d_boxes,
       r.Stop();
       if (overflow) // rerun
       {
-        spdlog::debug("overflow after vf");
+        spdlog::warn("overflow after vf");
         gpuErrchk(cudaFree(d_ee_data_list));
         continue;
       }
-      spdlog::debug("toi after vf {:e}", toi);
+      spdlog::trace("toi after vf {:e}", toi);
       // spdlog::trace("time after vf {:.6f}",  tmp_tall);
       r.Start("run_memory_pool_ccd (narrowphase)", /*gpu=*/true);
       run_memory_pool_ccd(d_ee_data_list, memhandle, ee_size,
@@ -251,15 +252,10 @@ void run_narrowphase(int2 *d_overlaps, Aabb *d_boxes,
                           r);
       gpuErrchk(cudaDeviceSynchronize());
       r.Stop();
-      spdlog::debug("toi after ee {:e}", toi);
+      spdlog::info("toi after ee {:e}", toi);
       if (overflow)
-        spdlog::debug("overflow after ee");
-      // spdlog::trace("time after ee {:.6f}",  tmp_tall);
+        spdlog::warn("overflow after ee");
     }
-
-    // int overflow;
-    // cudaMemcpy(&overflow, &d_config[0].overflow_flag, sizeof(int),
-    //            cudaMemcpyDeviceToHost);
 
     start_id += tmp_nbr;
   }
@@ -268,9 +264,9 @@ void run_narrowphase(int2 *d_overlaps, Aabb *d_boxes,
 void run_ccd(const vector<Aabb> boxes, stq::gpu::MemHandler *memhandle,
              const Eigen::MatrixXd &vertices_t0,
              const Eigen::MatrixXd &vertices_t1, Record &r, int N, int &nbox,
-             int &parallel, int &devcount, vector<pair<int, int>> &overlaps,
-             vector<int> &result_list, bool &allow_zero_toi, Scalar &ms,
-             Scalar &toi) {
+             int &parallel, int &devcount, int &limitGB,
+             vector<pair<int, int>> &overlaps, vector<int> &result_list,
+             bool &allow_zero_toi, Scalar &ms, Scalar &toi) {
   toi = 1;
   bool use_ms = ms > 0;
 
@@ -284,21 +280,22 @@ void run_ccd(const vector<Aabb> boxes, stq::gpu::MemHandler *memhandle,
   size_t tot_count = 0;
   while (N > tidstart && toi > 0) {
 
-    spdlog::debug("Next loop: N {:d}, tidstart {:d}", N, tidstart);
+    spdlog::trace("Next loop: N {:d}, tidstart {:d}", N, tidstart);
 
     r.Start("run_sweep_sharedqueue (broadphase)", /*gpu=*/true);
     run_sweep_sharedqueue(boxes.data(), memhandle, N, nbox, overlaps,
-                          d_overlaps, d_count, bpthreads, tidstart, devcount);
+                          d_overlaps, d_count, bpthreads, tidstart, devcount,
+                          limitGB);
     r.Stop();
 
-    spdlog::debug("First run end {:d}", tidstart);
+    spdlog::trace("First run end {:d}", tidstart);
     // memhandle->increaseOverlapCutoff(2);
-    spdlog::debug("Next cutoff {:d}", memhandle->MAX_OVERLAP_CUTOFF);
+    spdlog::trace("Next cutoff {:d}", memhandle->MAX_OVERLAP_CUTOFF);
 
     spdlog::trace("Threads now {:d}", npthreads);
 
     r.Start("copyBoxesToGpu", /*gpu=*/true);
-    // // copy overlap count
+
     int count;
     gpuErrchk(cudaMemcpy(&count, d_count, sizeof(int), cudaMemcpyDeviceToHost));
     tot_count += count;
@@ -333,7 +330,7 @@ void run_ccd(const vector<Aabb> boxes, stq::gpu::MemHandler *memhandle,
 
     cudaDeviceSynchronize();
   }
-  spdlog::debug("Total count {:d}", tot_count);
+  spdlog::info("Total count {:d}", tot_count);
 }
 
 void construct_static_collision_candidates(const Eigen::MatrixXd &V,

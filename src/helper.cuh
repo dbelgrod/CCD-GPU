@@ -22,7 +22,7 @@ void run_ccd(const std::vector<stq::gpu::Aabb> boxes,
              stq::gpu::MemHandler *memhandle,
              const Eigen::MatrixXd &vertices_t0,
              const Eigen::MatrixXd &vertices_t1, Record &r, int N, int &nbox,
-             int &parallel, int &devcount,
+             int &parallel, int &devcount, int &limitGB,
              std::vector<std::pair<int, int>> &overlaps,
              std::vector<int> &result_list, bool &allow_zero_toi,
              Scalar &min_distance, Scalar &toi);

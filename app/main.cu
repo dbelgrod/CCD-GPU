@@ -57,11 +57,12 @@ int main(int argc, char **argv) {
   int nbox = 0;
   int parallel = 64;
   int devcount = 1;
+  int limitGB = 0;
 
   // std::copy(from_vector.begin(), from_vector.end(), to_vector.begin());
 
   int o;
-  while ((o = getopt(argc, argv, "c:n:b:p:")) != -1) {
+  while ((o = getopt(argc, argv, "c:n:b:p:v:")) != -1) {
     switch (o) {
     case 'c':
       optind--;
@@ -78,6 +79,9 @@ int main(int argc, char **argv) {
       break;
     case 'p':
       parallel = atoi(optarg);
+      break;
+    case 'v':
+      limitGB = atoi(optarg);
       break;
     }
   }
@@ -97,7 +101,8 @@ int main(int argc, char **argv) {
   //                                       boxes);
 
   run_ccd(boxes, memhandle, vertices_t0, vertices_t1, r, N, nbox, parallel,
-          devcount, overlaps, result_list, allow_zero_toi, min_distance, toi);
+          devcount, limitGB, overlaps, result_list, allow_zero_toi,
+          min_distance, toi);
   // r.Print();
   // std::cout << r.j_object["run_memory_pool_ccd (narrowphase)"];
 

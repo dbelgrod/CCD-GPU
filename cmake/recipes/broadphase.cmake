@@ -11,11 +11,12 @@ if(EXISTS "${CCDGPU_BROADPHASE_PATH}")
     message(STATUS "Using Broadphase found at: ${CCDGPU_BROADPHASE_PATH}")
     add_subdirectory("${CCDGPU_BROADPHASE_PATH}" "${PROJECT_BINARY_DIR}/broadphase")
 else()
+    message(WARNING "${CCDGPU_BROADPHASE_PATH} does not exist, fetching Broadphase")
     include(FetchContent)
     FetchContent_Declare(
         broadphase
         GIT_REPOSITORY https://github.com/dbelgrod/broadphase-gpu.git
-        GIT_TAG 384de78f6b8226efc39c7a1be05a39fdae7d8f54
+        GIT_TAG 712ea380f87c538612d6cdbf3021d7b975ca1f21
         GIT_SHALLOW FALSE
     )
     FetchContent_MakeAvailable(broadphase)
