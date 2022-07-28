@@ -37,9 +37,9 @@ inline void gpuAssert(cudaError_t code, const char *file, int line,
 // Allocates and copies data to GPU
 template <typename T> T *copy_to_gpu(const T *cpu_data, const int size) {
   T *gpu_data;
-  cudaMalloc((void **)&gpu_data, sizeof(T) * size);
-  cudaMemcpy(gpu_data, cpu_data, sizeof(T) * size, cudaMemcpyHostToDevice);
-  gpuErrchk(cudaGetLastError());
+  gpuErrchk(cudaMalloc((void **)&gpu_data, sizeof(T) * size));
+  gpuErrchk(
+    cudaMemcpy(gpu_data, cpu_data, sizeof(T) * size, cudaMemcpyHostToDevice));
   return gpu_data;
 }
 
@@ -153,14 +153,16 @@ void run_narrowphase(int2 *d_overlaps, Aabb *d_boxes,
     int tmp_nbr;
     while (overflow) {
       tmp_nbr = std::min(remain, memhandle->MAX_QUERIES);
-      size_t constraint = sizeof(MP_unit) * 2 * memhandle->MAX_UNIT_SIZE +
-                          sizeof(CCDConfig) + tmp_nbr * sizeof(int2) * 2 +
-                          sizeof(CCDData) * tmp_nbr;
-      spdlog::trace("itr {:d}", itr);
-      if (itr == 0)
-        memhandle->increaseUnitSize(constraint);
-      else
-        memhandle->handleOverflow(constraint);
+
+      spdlog::debug("itr {:d}", itr);
+      if (itr == 0) {
+        memhandle->handleNarrowPhase(tmp_nbr);
+      } else {
+        memhandle->handleOverflow(tmp_nbr);
+        // tmp_nbr =
+        //   std::min(static_cast<size_t>(tmp_nbr), memhandle->MAX_QUERIES);
+      }
+
       itr++;
 
       r.Start("splitOverlaps", /*gpu=*/true);
@@ -202,13 +204,11 @@ void run_narrowphase(int2 *d_overlaps, Aabb *d_boxes,
       addData<<<vf_size / threads + 1, threads>>>(
         d_vf_overlaps, d_boxes, d_vertices_t0, d_vertices_t1, Vrows, vf_size,
         ms, d_vf_data_list);
-      cudaDeviceSynchronize();
-      gpuErrchk(cudaGetLastError());
+      gpuErrchk(cudaDeviceSynchronize());
       addData<<<ee_size / threads + 1, threads>>>(
         d_ee_overlaps, d_boxes, d_vertices_t0, d_vertices_t1, Vrows, ee_size,
         ms, d_ee_data_list);
-      cudaDeviceSynchronize();
-      gpuErrchk(cudaGetLastError());
+      gpuErrchk(cudaDeviceSynchronize());
 
       r.Stop();
 
@@ -252,7 +252,7 @@ void run_narrowphase(int2 *d_overlaps, Aabb *d_boxes,
                           r);
       gpuErrchk(cudaDeviceSynchronize());
       r.Stop();
-      spdlog::info("toi after ee {:e}", toi);
+      spdlog::trace("toi after ee {:e}", toi);
       if (overflow)
         spdlog::warn("overflow after ee");
     }
@@ -331,6 +331,7 @@ void run_ccd(const vector<Aabb> boxes, stq::gpu::MemHandler *memhandle,
     cudaDeviceSynchronize();
   }
   spdlog::info("Total count {:d}", tot_count);
+  spdlog::info("LimitGB {:d}", memhandle->limitGB);
 }
 
 void construct_static_collision_candidates(const Eigen::MatrixXd &V,

@@ -81,7 +81,7 @@ struct Record {
     spdlog::trace("{} : {:.3f} ms", tag, elapsed);
   }
 
-  void Print() { spdlog::trace("{}", j_object.dump()); }
+  void Print() { spdlog::info("{}", j_object.dump()); }
 
   json Dump() { return j_object; }
 };

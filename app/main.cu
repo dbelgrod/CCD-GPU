@@ -23,7 +23,7 @@ bool is_file_exist(const char *fileName) {
 }
 
 int main(int argc, char **argv) {
-  spdlog::set_level(static_cast<spdlog::level::level_enum>(1));
+  spdlog::set_level(static_cast<spdlog::level::level_enum>(2));
 
   stq::gpu::MemHandler *memhandle = new stq::gpu::MemHandler();
 
@@ -103,6 +103,9 @@ int main(int argc, char **argv) {
   run_ccd(boxes, memhandle, vertices_t0, vertices_t1, r, N, nbox, parallel,
           devcount, limitGB, overlaps, result_list, allow_zero_toi,
           min_distance, toi);
+  r.j_object["limitGB"] = limitGB;
+  r.j_object["toi"] = toi;
+  r.Print();
   // r.Print();
   // std::cout << r.j_object["run_memory_pool_ccd (narrowphase)"];
 

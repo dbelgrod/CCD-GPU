@@ -859,7 +859,7 @@ void run_memory_pool_ccd(CCDData *d_data_list, stq::gpu::MemHandler *memhandle,
   int nbr = tmp_nbr;
   spdlog::trace("tmp_nbr {}", tmp_nbr);
 
-  memhandle->setUnitSize(/*constraint=*/sizeof(CCDConfig));
+  // memhandle->setUnitSize(/*constraint=*/sizeof(CCDConfig));
 
   // int *res = new int[nbr];
   CCDConfig *config = new CCDConfig[1];
@@ -880,14 +880,15 @@ void run_memory_pool_ccd(CCDData *d_data_list, stq::gpu::MemHandler *memhandle,
   config[0].use_ms = use_ms;
   config[0].allow_zero_toi = allow_zero_toi;
   config[0].max_iter = max_iter;
-  spdlog::trace("unit_size : {:d}", config[0].unit_size);
 
   // int *d_res;
   MP_unit *d_units;
   CCDConfig *d_config;
 
   size_t unit_size = sizeof(MP_unit) * config[0].unit_size;
-
+  spdlog::debug("unit_size : {:d}", config[0].unit_size);
+  spdlog::debug("unit_size (bytes) : {:d}", unit_size);
+  spdlog::debug("allocatable (bytes) : {:d}", memhandle->__getAllocatable());
   // size_t result_size = sizeof(int) * nbr;
 
   // cudaMalloc(&d_res, result_size);
@@ -901,8 +902,8 @@ void run_memory_pool_ccd(CCDData *d_data_list, stq::gpu::MemHandler *memhandle,
   spdlog::trace("nbr: {:d}, parallel_nbr {:d}", nbr, parallel_nbr);
   initialize_memory_pool<<<nbr / parallel_nbr + 1, parallel_nbr>>>(d_units,
                                                                    nbr);
+  gpuErrchk(cudaDeviceSynchronize());
 
-  cudaDeviceSynchronize();
   if (is_edge) {
     compute_ee_tolerance_memory_pool<<<nbr / parallel_nbr + 1, parallel_nbr>>>(
       d_data_list, d_config, nbr);
@@ -910,8 +911,7 @@ void run_memory_pool_ccd(CCDData *d_data_list, stq::gpu::MemHandler *memhandle,
     compute_vf_tolerance_memory_pool<<<nbr / parallel_nbr + 1, parallel_nbr>>>(
       d_data_list, d_config, nbr);
   }
-  cudaDeviceSynchronize();
-  gpuErrchk(cudaGetLastError());
+  gpuErrchk(cudaDeviceSynchronize());
 
   spdlog::trace("MAX_QUERIES: {:d}", memhandle->MAX_QUERIES);
   spdlog::trace("sizeof(Scalar) {:d}", sizeof(ccd::Scalar));
@@ -980,8 +980,8 @@ void run_memory_pool_ccd(CCDData *d_data_list, stq::gpu::MemHandler *memhandle,
 #ifdef CCD_TOI_PER_QUERY
   CCDData *data_list = new CCDData[tmp_nbr];
   // CCDConfig *config = new CCDConfig[1];
-  cudaMemcpy(data_list, d_data_list, sizeof(CCDData) * tmp_nbr,
-             cudaMemcpyDeviceToHost);
+  gpuErrchk(cudaMemcpy(data_list, d_data_list, sizeof(CCDData) * tmp_nbr,
+                       cudaMemcpyDeviceToHost));
   // std::vector<std::pair<std::string, std::string>> symbolic_tois;
   int tpq_cnt = 0;
   for (size_t i = 0; i < tmp_nbr; i++) {
@@ -1004,7 +1004,7 @@ void run_memory_pool_ccd(CCDData *d_data_list, stq::gpu::MemHandler *memhandle,
   }
   spdlog::trace("tpq_cnt: {:d}", tpq_cnt);
   free(data_list);
-  cudaDeviceSynchronize();
+  gpuErrchk(cudaDeviceSynchronize());
   // json jtmp(symbolic_tois.begin(), symbolic_tois.end());
   // std::cout << jtmp.dump(4) << std::endl;
   // r.j_object.insert(jtmp.begin(), jtmp.end());
