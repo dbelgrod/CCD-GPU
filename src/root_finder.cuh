@@ -4,6 +4,7 @@
 #include <ccdgpu/record.hpp>
 #include <ccdgpu/timer.hpp>
 #include <vector>
+#include <stq/gpu/memory.cuh>
 
 // #include <gputi/book.h>
 namespace ccd {
@@ -26,10 +27,12 @@ __global__ void compute_ee_tolerance_memory_pool(CCDData *data,
                                                  CCDConfig *config,
                                                  const int query_size);
 
-void run_memory_pool_ccd(CCDData *d_data_list, int tmp_nbr, bool is_edge,
+void run_memory_pool_ccd(CCDData *d_data_list, stq::gpu::MemHandler *memhandle,
+                         int tmp_nbr, bool is_edge,
                          std::vector<int> &result_list, int parallel_nbr,
                          int max_iter, ccd::Scalar tol, bool use_ms,
-                         bool allow_zero_toi, ccd::Scalar &toi, gpu::Record &r);
+                         bool allow_zero_toi, ccd::Scalar &toi, int &overflow,
+                         gpu::Record &r);
 
 // get the filter of ccd. the inputs are the vertices of the bounding box of
 // the simulation scene this function is directly copied from

@@ -850,13 +850,17 @@ __global__ void shift_queue_pointers(CCDConfig *config) {
       : config[0].mp_remaining;
 }
 
-void run_memory_pool_ccd(CCDData *d_data_list, int tmp_nbr, bool is_edge,
+void run_memory_pool_ccd(CCDData *d_data_list, stq::gpu::MemHandler *memhandle,
+                         int tmp_nbr, bool is_edge,
                          std::vector<int> &result_list, int parallel_nbr,
                          int max_iter, ccd::Scalar tol, bool use_ms,
-                         bool allow_zero_toi, ccd::Scalar &toi,
+                         bool allow_zero_toi, ccd::Scalar &toi, int &overflow,
                          gpu::Record &r) {
   int nbr = tmp_nbr;
   spdlog::trace("tmp_nbr {}", tmp_nbr);
+
+  // memhandle->setUnitSize(/*constraint=*/sizeof(CCDConfig));
+
   // int *res = new int[nbr];
   CCDConfig *config = new CCDConfig[1];
   // config[0].err_in[0] =
@@ -871,32 +875,35 @@ void run_memory_pool_ccd(CCDData *d_data_list, int tmp_nbr, bool is_edge,
   config[0].mp_start = 0;
   config[0].mp_remaining = nbr;
   config[0].overflow_flag = 0;
-  config[0].unit_size = std::min(1024 * nbr, int(5e7)); // 2.0 * nbr;
+  config[0].unit_size =
+    memhandle->MAX_UNIT_SIZE; // std::min(1024 * nbr, int(5e7)); // 2.0 * nbr;
   config[0].use_ms = use_ms;
   config[0].allow_zero_toi = allow_zero_toi;
   config[0].max_iter = max_iter;
-  spdlog::trace("unit_size : {:d}", config[0].unit_size);
 
   // int *d_res;
   MP_unit *d_units;
   CCDConfig *d_config;
 
-  size_t unit_size = sizeof(MP_unit) * config[0].unit_size; // arbitrary #
-
+  size_t unit_size = sizeof(MP_unit) * config[0].unit_size;
+  spdlog::debug("unit_size : {:d}", config[0].unit_size);
+  spdlog::debug("unit_size (bytes) : {:d}", unit_size);
+  spdlog::debug("allocatable (bytes) : {:d}", memhandle->__getAllocatable());
   // size_t result_size = sizeof(int) * nbr;
 
   // cudaMalloc(&d_res, result_size);
-  cudaMalloc(&d_units, unit_size);
-  cudaMalloc(&d_config, sizeof(CCDConfig));
-  cudaMemcpy(d_config, config, sizeof(CCDConfig), cudaMemcpyHostToDevice);
+  gpuErrchk(cudaMalloc(&d_units, unit_size));
+  gpuErrchk(cudaMalloc(&d_config, sizeof(CCDConfig)));
+  gpuErrchk(
+    cudaMemcpy(d_config, config, sizeof(CCDConfig), cudaMemcpyHostToDevice));
   gpuErrchk(cudaGetLastError());
   // ccd::Timer timer;
   // timer.start();
   spdlog::trace("nbr: {:d}, parallel_nbr {:d}", nbr, parallel_nbr);
   initialize_memory_pool<<<nbr / parallel_nbr + 1, parallel_nbr>>>(d_units,
                                                                    nbr);
+  gpuErrchk(cudaDeviceSynchronize());
 
-  cudaDeviceSynchronize();
   if (is_edge) {
     compute_ee_tolerance_memory_pool<<<nbr / parallel_nbr + 1, parallel_nbr>>>(
       d_data_list, d_config, nbr);
@@ -904,10 +911,9 @@ void run_memory_pool_ccd(CCDData *d_data_list, int tmp_nbr, bool is_edge,
     compute_vf_tolerance_memory_pool<<<nbr / parallel_nbr + 1, parallel_nbr>>>(
       d_data_list, d_config, nbr);
   }
-  cudaDeviceSynchronize();
-  gpuErrchk(cudaGetLastError());
+  gpuErrchk(cudaDeviceSynchronize());
 
-  spdlog::trace("MAX_OVERLAP_SIZE: {:d}", MAX_OVERLAP_SIZE);
+  spdlog::trace("MAX_QUERIES: {:d}", memhandle->MAX_QUERIES);
   spdlog::trace("sizeof(Scalar) {:d}", sizeof(ccd::Scalar));
 
   int nbr_per_loop = nbr;
@@ -923,12 +929,12 @@ void run_memory_pool_ccd(CCDData *d_data_list, int tmp_nbr, bool is_edge,
       vf_ccd_memory_pool<<<nbr_per_loop / parallel_nbr + 1, parallel_nbr>>>(
         d_units, nbr, d_data_list, d_config);
     }
-    cudaDeviceSynchronize();
+    gpuErrchk(cudaDeviceSynchronize());
     gpuErrchk(cudaGetLastError());
     shift_queue_pointers<<<1, 1>>>(d_config);
-    cudaDeviceSynchronize();
-    cudaMemcpy(&nbr_per_loop, &d_config[0].mp_remaining, sizeof(int),
-               cudaMemcpyDeviceToHost);
+    gpuErrchk(cudaDeviceSynchronize());
+    gpuErrchk(cudaMemcpy(&nbr_per_loop, &d_config[0].mp_remaining, sizeof(int),
+                         cudaMemcpyDeviceToHost));
     // cudaMemcpy(&start, &d_config[0].mp_start, sizeof(int),
     //            cudaMemcpyDeviceToHost);
     // cudaMemcpy(&end, &d_config[0].mp_end, sizeof(int),
@@ -948,15 +954,15 @@ void run_memory_pool_ccd(CCDData *d_data_list, int tmp_nbr, bool is_edge,
   gpuErrchk(cudaGetLastError());
 
   // cudaMemcpy(res, d_res, result_size, cudaMemcpyDeviceToHost);
-  cudaMemcpy(&toi, &d_config[0].toi, sizeof(ccd::Scalar),
-             cudaMemcpyDeviceToHost);
-  int overflow;
-  cudaMemcpy(&overflow, &d_config[0].overflow_flag, sizeof(int),
-             cudaMemcpyDeviceToHost);
-  if (overflow) {
-    spdlog::error("OVERFLOW!!!!");
-    abort();
-  }
+  gpuErrchk(cudaMemcpy(&toi, &d_config[0].toi, sizeof(ccd::Scalar),
+                       cudaMemcpyDeviceToHost));
+  // int overflow;
+  gpuErrchk(cudaMemcpy(&overflow, &d_config[0].overflow_flag, sizeof(int),
+                       cudaMemcpyDeviceToHost));
+  // if (overflow) {
+  //   spdlog::error("OVERFLOW!!!!");
+  //   abort();
+  // }
 
   gpuErrchk(cudaFree(d_units));
   gpuErrchk(cudaFree(d_config));
@@ -974,8 +980,8 @@ void run_memory_pool_ccd(CCDData *d_data_list, int tmp_nbr, bool is_edge,
 #ifdef CCD_TOI_PER_QUERY
   CCDData *data_list = new CCDData[tmp_nbr];
   // CCDConfig *config = new CCDConfig[1];
-  cudaMemcpy(data_list, d_data_list, sizeof(CCDData) * tmp_nbr,
-             cudaMemcpyDeviceToHost);
+  gpuErrchk(cudaMemcpy(data_list, d_data_list, sizeof(CCDData) * tmp_nbr,
+                       cudaMemcpyDeviceToHost));
   // std::vector<std::pair<std::string, std::string>> symbolic_tois;
   int tpq_cnt = 0;
   for (size_t i = 0; i < tmp_nbr; i++) {
@@ -996,9 +1002,9 @@ void run_memory_pool_ccd(CCDData *d_data_list, int tmp_nbr, bool is_edge,
     //          data_list[i].toi);
     r.j_object["toi_per_query"].push_back(triple);
   }
-  spdlog::debug("tpq_cnt: {:d}", tpq_cnt);
+  spdlog::trace("tpq_cnt: {:d}", tpq_cnt);
   free(data_list);
-  cudaDeviceSynchronize();
+  gpuErrchk(cudaDeviceSynchronize());
   // json jtmp(symbolic_tois.begin(), symbolic_tois.end());
   // std::cout << jtmp.dump(4) << std::endl;
   // r.j_object.insert(jtmp.begin(), jtmp.end());

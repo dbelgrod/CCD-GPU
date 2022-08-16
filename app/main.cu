@@ -5,6 +5,7 @@
 #include <stq/gpu/groundtruth.cuh>
 #include <stq/gpu/io.cuh>
 #include <stq/gpu/util.cuh>
+#include <stq/gpu/memory.cuh>
 
 #include <ccdgpu/CType.cuh>
 #include <ccdgpu/helper.cuh>
@@ -22,7 +23,9 @@ bool is_file_exist(const char *fileName) {
 }
 
 int main(int argc, char **argv) {
-  spdlog::set_level(static_cast<spdlog::level::level_enum>(0));
+  spdlog::set_level(static_cast<spdlog::level::level_enum>(2));
+
+  stq::gpu::MemHandler *memhandle = new stq::gpu::MemHandler();
 
   std::vector<char *> compare;
   Record r;
@@ -54,11 +57,12 @@ int main(int argc, char **argv) {
   int nbox = 0;
   int parallel = 64;
   int devcount = 1;
+  int limitGB = 0;
 
   // std::copy(from_vector.begin(), from_vector.end(), to_vector.begin());
 
   int o;
-  while ((o = getopt(argc, argv, "c:n:b:p:")) != -1) {
+  while ((o = getopt(argc, argv, "c:n:b:p:v:")) != -1) {
     switch (o) {
     case 'c':
       optind--;
@@ -75,6 +79,9 @@ int main(int argc, char **argv) {
       break;
     case 'p':
       parallel = atoi(optarg);
+      break;
+    case 'v':
+      limitGB = atoi(optarg);
       break;
     }
   }
@@ -93,8 +100,12 @@ int main(int argc, char **argv) {
   // construct_static_collision_candidates(vertices_t0, edges, faces, overlaps,
   //                                       boxes);
 
-  run_ccd(boxes, vertices_t0, vertices_t1, r, N, nbox, parallel, devcount,
-          overlaps, result_list, allow_zero_toi, min_distance, toi);
+  run_ccd(boxes, memhandle, vertices_t0, vertices_t1, r, N, nbox, parallel,
+          devcount, limitGB, overlaps, result_list, allow_zero_toi,
+          min_distance, toi);
+  r.j_object["limitGB"] = limitGB;
+  r.j_object["toi"] = toi;
+  r.Print();
   // r.Print();
   // std::cout << r.j_object["run_memory_pool_ccd (narrowphase)"];
 

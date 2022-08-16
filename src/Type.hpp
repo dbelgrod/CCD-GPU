@@ -12,7 +12,7 @@
 namespace ccd {
 ///////////////////////////////
 // here are the parameters for the memory pool
-static const int MAX_OVERLAP_SIZE = 1e7;
+// static const int MAX_QUERIES = 1e6;
 static const int MAX_CHECKS = 1e6;
 
 ///////////////////////////////

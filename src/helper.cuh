@@ -3,6 +3,7 @@
 #include <ccdgpu/Type.hpp>
 #include <ccdgpu/record.hpp>
 #include <stq/gpu/aabb.cuh>
+#include <stq/gpu/memory.cuh>
 
 #include <spdlog/spdlog.h>
 
@@ -18,14 +19,16 @@ __global__ void addData(const int2 *const overlaps,
                         CCDData *data, int shift = 0);
 
 void run_ccd(const std::vector<stq::gpu::Aabb> boxes,
+             stq::gpu::MemHandler *memhandle,
              const Eigen::MatrixXd &vertices_t0,
              const Eigen::MatrixXd &vertices_t1, Record &r, int N, int &nbox,
-             int &parallel, int &devcount,
+             int &parallel, int &devcount, int &limitGB,
              std::vector<std::pair<int, int>> &overlaps,
              std::vector<int> &result_list, bool &allow_zero_toi,
              Scalar &min_distance, Scalar &toi);
 
-void run_narrowphase(int2 *d_overlaps, stq::gpu::Aabb *d_boxes, int count,
+void run_narrowphase(int2 *d_overlaps, stq::gpu::Aabb *d_boxes,
+                     stq::gpu::MemHandler *memhandle, int count,
                      Scalar *d_vertices_t0, Scalar *d_vertices_t1, int Vrows,
                      int threads, int max_iter, Scalar tol, Scalar ms,
                      bool allow_zero_toi, std::vector<int> &result_list,
