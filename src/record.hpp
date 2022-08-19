@@ -84,6 +84,8 @@ struct Record {
   void Print() { spdlog::info("{}", j_object.dump()); }
 
   json Dump() { return j_object; }
+
+  void Clear() {j_object.clear();}
 };
 
 } // namespace ccd::gpu
