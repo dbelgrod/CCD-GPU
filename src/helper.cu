@@ -399,7 +399,7 @@ Scalar compute_toi_strategy(const Eigen::MatrixXd &V0,
   json j;
   Record r(j);
 
-  Scalar earliest_toi;
+  Scalar earliest_toi = 1.0;
 
   while (N > start_id) {
 
