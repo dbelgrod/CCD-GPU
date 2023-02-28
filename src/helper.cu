@@ -12,7 +12,7 @@
 
 #include <ccdgpu/record.hpp>
 #include <stq/gpu/memory.cuh>
-#include <stq/gpu/simulation.cuh>
+#include <stq/gpu/broadphase.cuh>
 
 #include <spdlog/spdlog.h>
 
@@ -280,10 +280,9 @@ void run_ccd(const vector<Aabb> boxes, stq::gpu::MemHandler *memhandle,
 
     spdlog::trace("Next loop: N {:d}, tidstart {:d}", N, tidstart);
 
-    r.Start("run_sweep_sharedqueue (broadphase)", /*gpu=*/true);
-    run_sweep_sharedqueue(boxes.data(), memhandle, N, nbox, overlaps,
-                          d_overlaps, d_count, bpthreads, tidstart, devcount,
-                          limitGB);
+    r.Start("runBroadPhase", /*gpu=*/true);
+    runBroadPhase(boxes.data(), memhandle, N, nbox, overlaps, d_overlaps,
+                  d_count, bpthreads, tidstart, devcount, limitGB);
     r.Stop();
 
     spdlog::trace("First run end {:d}", tidstart);
@@ -361,9 +360,8 @@ void construct_continuous_collision_candidates(const Eigen::MatrixXd &V0,
   int limitGB = 0;
   stq::gpu::MemHandler *memhandle = new stq::gpu::MemHandler();
   while (N > start_id) {
-    run_sweep_sharedqueue(boxes.data(), memhandle, N, nbox, overlaps,
-                          d_overlaps, d_count, bpthreads, start_id, devcount,
-                          limitGB);
+    runBroadPhase(boxes.data(), memhandle, N, nbox, overlaps, d_overlaps,
+                  d_count, bpthreads, start_id, devcount, limitGB);
     gpuErrchk(cudaDeviceSynchronize());
   }
 
@@ -403,9 +401,8 @@ Scalar compute_toi_strategy(const Eigen::MatrixXd &V0,
 
   while (N > start_id) {
 
-    run_sweep_sharedqueue(boxes.data(), memhandle, N, nbox, overlaps,
-                          d_overlaps, d_count, bpthreads, start_id, devcount,
-                          limitGB);
+    runBroadPhase(boxes.data(), memhandle, N, nbox, overlaps, d_overlaps,
+                  d_count, bpthreads, start_id, devcount, limitGB);
 
     // copy overlap count
     int count;
