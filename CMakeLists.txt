@@ -71,10 +71,6 @@ set_target_properties(${PROJECT_NAME}
   PROPERTIES CUDA_SEPARABLE_COMPILATION ON
 )
 
-# Nvidia RTX8000 -> compute_75
-# Nvidia V100 -> compute_70
-# Nvidia 1080/1080Ti -> compute_61
-# Nvidia 3080Ti -> compute_86
 set_property(TARGET ${PROJECT_NAME} PROPERTY CUDA_ARCHITECTURES native)
 
 target_compile_options(${PROJECT_NAME} PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:
