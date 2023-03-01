@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.8 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.24.0 FATAL_ERROR)
 
 # set(CMAKE_CUDA_COMPILER "/usr/local/cuda/bin/nvcc")
 project(CCDGPU LANGUAGES CXX CUDA)
@@ -62,11 +62,6 @@ target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_11)
 # ###############################################################################
 # CUDA
 # ###############################################################################
-# set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O0 -g")
-# set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -g -G")
-# set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xptxas -O3,-v -use_fast_math -maxrregcount 24")
-
-# set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -use_fast_math -Xptxas -O3,-v")
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -use_fast_math --expt-relaxed-constexpr  -gencode arch=compute_86,code=sm_86")
 
 # We need to explicitly state that we need all CUDA files in the CCDGPU
@@ -80,7 +75,7 @@ set_target_properties(${PROJECT_NAME}
 # Nvidia V100 -> compute_70
 # Nvidia 1080/1080Ti -> compute_61
 # Nvidia 3080Ti -> compute_86
-set_property(TARGET ${PROJECT_NAME} PROPERTY CUDA_ARCHITECTURES 70 75 86)
+set_property(TARGET ${PROJECT_NAME} PROPERTY CUDA_ARCHITECTURES native)
 
 target_compile_options(${PROJECT_NAME} PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:
   --generate-line-info
@@ -132,7 +127,7 @@ if(CCDGPU_TOPLEVEL_PROJECT)
   # executable
   add_executable(ccdgpu_bin app/main.cu)
   set_target_properties(ccdgpu_bin PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
-  set_property(TARGET ccdgpu_bin PROPERTY CUDA_ARCHITECTURES 70 75 86)
+  set_property(TARGET ccdgpu_bin PROPERTY CUDA_ARCHITECTURES native)
   target_link_libraries(ccdgpu_bin PRIVATE ${PROJECT_NAME})
 
   if(APPLE)
